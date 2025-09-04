@@ -1,22 +1,5 @@
-# ---- Python
-__pycache__/
-*.py[cod]
-*.egg
-*.egg-info/
-.eggs/
-dist/
-build/
-*.log
-
-# ---- Node / Electron
+# Node
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-lock.yaml
-package-lock.json
-
-# ---- Build output e binari grossi
 dist/
 build/
 *.exe
@@ -24,18 +7,13 @@ build/
 *.zip
 *.7z
 
-# ---- Ambienti / segreti
+# Log
+*.log
+
+# Ambienti
 .env
 .env.*
-venv/
-.venv/
-env/
 
-# ---- IDE/Editor
+# Editor
 .vscode/
 .idea/
-*.code-workspace
-
-# ---- OS junk
-.DS_Store
-Thumbs.db
