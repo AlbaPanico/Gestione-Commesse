@@ -6,6 +6,8 @@ build/
 *.dll
 *.zip
 *.7z
+*.log
+
 
 # Log
 *.log
