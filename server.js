@@ -578,6 +578,86 @@ if (lname.includes('ritiro'))           { form.getTextField(name).setText(dataTr
   }
 }
 
+// ============================================================
+// FUNZIONE UNICA: crea DDT ENTRATA + aggiorna Excel (manuale/auto)
+// ============================================================
+
+function _oggiStrSlash() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, "0");
+  return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+}
+function _readJsonSafe(fp) {
+  try {
+    if (fs.existsSync(fp)) {
+      const raw = fs.readFileSync(fp, "utf8");
+      return raw ? JSON.parse(raw) : {};
+    }
+  } catch {}
+  return {};
+}
+function _getColliDaReport(folderPath) {
+  const report = _readJsonSafe(path.join(folderPath, "report.json"));
+  return report?.colli ?? "";
+}
+
+/**
+ * Crea bolla entrata (PDF) e aggiorna Excel se configurato.
+ * Usa SEMPRE la stessa logica per manuale e automatico.
+ */
+async function creaBollaEntrataConExcel(folderPath, advance = true, opts = {}) {
+  try {
+    const r = await generaBollaEntrata({ folderPath, advance });
+    if (!r || !r.ok) return r || { ok: false, msg: "generaBollaEntrata ha restituito esito negativo" };
+
+    // Aggiorna Excel se impostato
+    try {
+      const settings = _readJsonSafe(settingsFilePath);
+      const reportDdtPath = settings?.reportDdtPath;
+      if (reportDdtPath && fs.existsSync(reportDdtPath)) {
+        const datiReport = _readJsonSafe(path.join(folderPath, "report.json"));
+        const prezzoVendita = (() => {
+          const v = datiReport?.prezzoVendita;
+          const n = Number(String(v).replace(",", "."));
+          return Number.isFinite(n) ? n : 0;
+        })();
+
+        const payload = {
+          reportDdtPath,
+          datiDdt: {
+            dataDdt: _oggiStrSlash(),
+            numeroDdt: r.numeroDoc,
+            codiceCommessa: r.codiceVisivo || "",
+            quantita: (datiReport?.quantita ?? ""),
+            colli: getColliDaReportSync(folderPath, ""),
+            nsDdt: "",           // lasciamo vuoto se non c’è T
+            del: "",
+            percorsoPdf: r.materialiPath && r.fileName ? path.join(r.materialiPath, r.fileName) : "",
+            folderPath,
+            descrizione: `Assembraggio ${path.basename(folderPath)}`,
+            nomeCommessa: path.basename(folderPath),
+            prezzoVendita,
+            ...(opts?.extra || {})
+          }
+        };
+
+        await fetch("http://127.0.0.1:3001/api/genera-ddt-excel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }).catch(() => {});
+      }
+    } catch (errExcel) {
+      console.warn("[creaBollaEntrataConExcel] Excel warn:", errExcel?.message || String(errExcel));
+    }
+
+    return r;
+  } catch (e) {
+    return { ok: false, msg: "[creaBollaEntrataConExcel] " + (e?.message || String(e)) };
+  }
+}
+
+
 // ───────────────────────────────────────────────────────────────────────────────
 // API unica per generare la Bolla di Entrata (manuale/automatica)
 // ───────────────────────────────────────────────────────────────────────────────
