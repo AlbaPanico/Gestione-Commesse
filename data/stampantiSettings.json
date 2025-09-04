@@ -1,0 +1,22 @@
+{
+  "printers": [
+    {
+      "aclLink": "http://192.168.1.82/accounting",
+      "nome": "Arizona B",
+      "jsonUnificatoLink": "http://192.168.1.250:3001/report_generale/Reportgenerali_Arizona%20B.json",
+      "costoCMYK": "180",
+      "costoW": "215",
+      "costoVernice": "215"
+    },
+    {
+      "aclLink": "http://192.168.1.81/accounting",
+      "nome": "Arizona A",
+      "jsonUnificatoLink": "http://192.168.1.250:3001/report_generale/Reportgenerali_Arizona%20A.json",
+      "costoCMYK": "180",
+      "costoW": "215",
+      "costoVernice": "215"
+    }
+  ],
+  "monitorJsonPath": "\\\\192.168.1.248\\\\time dati\\\\ARCHIVIO TECNICO\\\\Esportazioni 4.0\\\\PRINT\\\\REPORT ARIZONA\\\\data.json",
+  "reportGeneralePath": "\\\\192.168.1.248\\\\time dati\\\\ARCHIVIO TECNICO\\\\Esportazioni 4.0\\\\PRINT\\\\REPORT ARIZONA"
+}

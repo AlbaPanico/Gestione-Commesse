@@ -1,0 +1,34 @@
+{
+  "name": "gestione-commesse",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start-server": "node server.js",
+    "start-frontend": "npm run dev --prefix client",
+    "start-all": "concurrently \"npm run start-server\" \"npm run start-frontend\"",
+    "stop-all": "taskkill /IM node.exe /F",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "refresh-report": "node generaReportExcel.js"
+  },
+  "dependencies": {
+    "codepage": "^1.15.0",
+    "cors": "^2.8.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.2",
+    "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2",
+    "mssql": "^11.0.1",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.10.0",
+    "papaparse": "^5.5.2",
+    "react-draggable": "^4.4.6",
+    "react-new-window": "^1.0.1",
+    "serve-index": "^1.9.1",
+    "socket.io": "^4.8.1",
+    "ws": "^8.18.0",
+    "xlsx-style": "^0.8.13"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

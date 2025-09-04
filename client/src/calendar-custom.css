@@ -1,0 +1,93 @@
+/* calendar-custom.css */
+
+/* Rimuoviamo il bordo predefinito e impostiamo un font più moderno */
+.react-calendar {
+  border: none;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Personalizziamo la navigazione (mese/anno) */
+.react-calendar__navigation button {
+  color: #4A5568;
+  min-width: 44px;
+  background: none;
+  font-size: 16px;
+  margin: 0 2px;
+  transition: background-color 0.2s ease;
+}
+
+.react-calendar__navigation button:enabled:hover,
+.react-calendar__navigation button:enabled:focus {
+  background-color: #EDF2F7;
+}
+
+.react-calendar__navigation button.react-calendar__navigation__label {
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+/* Spaziatura e stile per i giorni */
+.react-calendar__month-view__days__day {
+  padding: 0.5rem;
+  margin: 0.2rem;
+  border-radius: 0.375rem;
+}
+
+/* Ogni tile deve avere position relative per posizionare i pallini e aggiungiamo l'ombra leggera */
+.react-calendar__tile {
+  position: relative;
+  overflow: visible;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  margin: 2px;
+  min-height: 7.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 0.3rem;
+}
+
+/* Contenitore pallini dentro la cella */
+.delivery-dots {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 4px;
+  padding: 4px;
+  justify-content: flex-start;
+  margin-top: 10px;
+  max-width: 100%;
+  box-sizing: border-box;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.delivery-dots span {
+  flex: 0 0 auto;
+}
+
+/* Modifichiamo la data selezionata in modo che venga mostrato solo l'outline */
+.react-calendar__tile--active {
+  background: none !important;
+  border: 2px solid #3182CE !important;
+  color: #3182CE !important;
+}
+
+.react-calendar__tile--active abbr {
+  position: relative;
+  z-index: 1;
+}
+
+.shadow-3d {
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+/* Animazione lampeggiante */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.blinking {
+  animation: blink 1s infinite;
+}

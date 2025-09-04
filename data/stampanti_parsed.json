@@ -1,0 +1,56 @@
+[
+  {
+    "device": "ARIZONA NEW",
+    "start": "20/05/2025 09:44",
+    "end": "20/05/2025 09:48",
+    "consumoKwh": 0
+  },
+  {
+    "device": "ARIZONA NEW",
+    "start": "20/05/2025 09:49",
+    "end": "20/05/2025 09:50",
+    "consumoKwh": 0
+  },
+  {
+    "device": "ARIZONA NEW",
+    "start": "20/05/2025 09:58",
+    "end": "20/05/2025 10:07",
+    "consumoKwh": 0
+  },
+  {
+    "device": "ARIZONA NEW",
+    "start": "20/05/2025 12:01",
+    "end": "",
+    "consumoKwh": 0
+  },
+  {
+    "device": "ARIZONA NEW",
+    "start": "20/05/2025 15:33",
+    "end": "20/05/2025 15:38",
+    "consumoKwh": 0
+  },
+  {
+    "device": "ARIZONA NEW",
+    "start": "20/05/2025 15:38",
+    "end": "20/05/2025 15:48",
+    "consumoKwh": 0
+  },
+  {
+    "device": "ARIZONA NEW",
+    "start": "20/05/2025 15:53",
+    "end": "20/05/2025 16:02",
+    "consumoKwh": 0
+  },
+  {
+    "device": "ARIZONA NEW",
+    "start": "20/05/2025 16:08",
+    "end": "20/05/2025 16:12",
+    "consumoKwh": 0
+  },
+  {
+    "device": "ARIZONA NEW",
+    "start": "20/05/2025 16:16",
+    "end": "20/05/2025 16:25",
+    "consumoKwh": 0
+  }
+]

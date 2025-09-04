@@ -1,0 +1,9 @@
+{
+  "pantografi": [
+    {
+      "link": "\"\\\\192.168.1.248\\time dati\\ARCHIVIO TECNICO\\Esportazioni 4.0\\PROTEK\\Ricevuti\\PART_PROGRAM_WORKINGS.csv\"",
+      "nome": "protek",
+      "jsonUnificatoLink": "http://192.168.1.250:3001/report_generale/Reportgenerali_protek.json"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "percorsoCartella": "\\\\192.168.1.248\\time dati\\ARCHIVIO TECNICO\\ARCHIVIO\\2025\\COMMESSE",
+  "cartellaDaClonare": "\\\\192.168.1.248\\time dati\\ARCHIVIO TECNICO\\ARCHIVIO\\2025\\XXX",
+  "emailDestinatariApertura": "Simone Stefanini <simone.stefanini@timedisplay.it>;  Riccardo Clerici - Time Display <riccardo@timedisplay.it>;  Luca Giambelli <giambelli@timedisplay.it>;  Diego Giambelli <diego.giambelli@timedisplay.it>; Clizia Colella <clizia@timedisplay.it>;  Stefania - Time Display srl <stefania@timedisplay.it>;  Luca Talarico <luca.talarico@timedisplay.it>;  Print <print@timedisplay.it>; Andrea - Time Display <andrea@timedisplay.it>;  Kong <kong@timedisplay.it>;  Dorina <produzione@timedisplay.it>; Laser <laser@timedisplay.it>;Klaudia <klaudia@timedisplay.it> ",
+  "emailDestinatariLavorazione": "Simone Stefanini <simone.stefanini@timedisplay.it>;    Luca Giambelli <giambelli@timedisplay.it>;     Stefania - Time Display srl <stefania@timedisplay.it>;  Luca Talarico <luca.talarico@timedisplay.it>;  Print <print@timedisplay.it>; Andrea - Time Display <andrea@timedisplay.it> ;  Dorina <produzione@timedisplay.it> ; Klaudia  <klaudia@timedisplay.it>",
+  "emailOggetto": "",
+  "emailContenuto": "",
+  "masterBolleUscita": "\\\\192.168.1.248\\time dati\\ARCHIVIO TECNICO\\APPLICAZIONI\\DDT WORK GROUP_MASTER fine AUTO5.pdf",
+  "masterBolleEntrata": "\\\\192.168.1.248\\time dati\\ARCHIVIO TECNICO\\APPLICAZIONI\\DDT WTIME GROUP_MODfine Auto5.pdf"
+}

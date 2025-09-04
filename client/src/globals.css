@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Variabili usate dai componenti shadcn/ui */
+:root {
+  --background: #ffffff;
+  --foreground: #000000;
+
+  --card: #ffffff;
+  --card-foreground: #1e1e1e;
+
+  --primary: #6366f1;
+  --primary-foreground: #ffffff;
+
+  --accent: #f1f5f9;
+  --accent-foreground: #1e1e1e;
+
+  --muted: #f9fafb;
+  --muted-foreground: #9ca3af;
+
+  /* Adesso usiamo il bordo personalizzato */
+  --border: #414244;
+  --input: #e2e8f0;
+}
+
+/* Font comune (modifica a tuo gusto) */
+body {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+/* Classe per i punti di consegna */
+.delivery-date {
+  background: #d1fae5 !important;  /* Sfondo verde chiaro */
+  position: relative;
+}
+
+.delivery-date::after {
+  content: '✔';  /* Spunta (puoi sostituirla con un'icona diversa se preferisci) */
+  color: green;
+  font-size: 0.8rem;
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+}
+
+/* Classe custom per applicare un effetto 3D con box-shadow nero alle cornici */
+.shadow-3d {
+  box-shadow: 4px 4px 10px black;
+}
+
+/* Classe custom per forzare un colore bordo specifico (#414244) */
+.border-custom {
+  border-color: #414244 !important;
+}
+
+.shadow-3d {
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
+}
+.form-label-white {
+  color: #ffffff;
+}
+
