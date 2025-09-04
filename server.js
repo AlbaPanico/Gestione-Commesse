@@ -514,8 +514,10 @@ if (advance) {
     if (!masterPDF || !fs.existsSync(masterPDF)) return { ok:false, error:'masterBolleEntrata non impostato/trovato' };
 
     // dati
-    const codiceVisivo = getCodiceCommessaVisuale(folderPath); // es. C8888-11
-    const numeroDoc = numeroPuro + 'W';
+let codiceVisivoRaw = getCodiceCommessaVisuale(folderPath); // es. C8888-11
+let codiceVisivo = normalizeCodiceVisivo(codiceVisivoRaw);
+const numeroDoc = numeroPuro + 'W';
+
     const dataDocIT = new Date().toLocaleDateString('it-IT');
     const dataFile = oggiStr();
     const nomeFile = `DDT_${numeroPuro}W_${codiceVisivo}_${dataFile}.pdf`; // ✅ compatibile con regex Python
