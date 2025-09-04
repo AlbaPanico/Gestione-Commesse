@@ -672,3 +672,14 @@
 [2025-09-04 19:13:33] DEBUG match regex USCITA: DDT_0001T_C9999_04-09-2025.pdf
 [2025-09-04 19:13:33] DEBUG prezzoVendita ricevuto='123' -> usato=123.0
 [2025-09-04 19:13:33] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 8) | NomeCommessa='aaa' | Codice='C9999' | PrezzoVendita=123.0 | PDF_IN='DDT_0080W_AAA_aaa_P123_C9999_04-09-2025.pdf'
+[2025-09-04 19:15:20] DEBUG DATI keys=['reportDdtPath', 'dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'oreLavorazione', 'costoPz', 'costoTot', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita']
+[2025-09-04 19:15:20] DEBUG nomeCommessa='AAA_aaa_P123_C9999' descrizione='Assembraggio AAA_aaa_P123_C9999'
+[2025-09-04 19:15:20] DEBUG estrazione: sorgente='Assembraggio AAA_aaa_P123_C9999' -> estratto='aaa'
+[2025-09-04 19:15:20] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\AAA_aaa_P123_C9999\MATERIALI' esiste=True
+[2025-09-04 19:15:20] DEBUG codice_commessa_norm='C9999' (raw='C9999')
+[2025-09-04 19:15:20] DEBUG MATERIALI contiene (4 file): DDT_0001T_C9999_04-09-2025.pdf, DDT_0081W_AAA_aaa_P123_C9999_04-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_AAA_aaa_P123_C9999.xlsx
+[2025-09-04 19:15:20] DEBUG match regex ENTRATA: DDT_0081W_AAA_aaa_P123_C9999_04-09-2025.pdf
+[2025-09-04 19:15:20] DEBUG MATERIALI contiene (4 file): DDT_0001T_C9999_04-09-2025.pdf, DDT_0081W_AAA_aaa_P123_C9999_04-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_AAA_aaa_P123_C9999.xlsx
+[2025-09-04 19:15:20] DEBUG match regex USCITA: DDT_0001T_C9999_04-09-2025.pdf
+[2025-09-04 19:15:20] DEBUG prezzoVendita ricevuto='123' -> usato=123.0
+[2025-09-04 19:15:20] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 9) | NomeCommessa='aaa' | Codice='C9999' | PrezzoVendita=123.0 | PDF_IN='DDT_0081W_AAA_aaa_P123_C9999_04-09-2025.pdf'

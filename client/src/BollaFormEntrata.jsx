@@ -348,7 +348,9 @@ export default function BollaFormEntrata({ onClose, commessa, reportDdtPath }) {
     const materialiPath = pathBase ? pathBase + "/MATERIALI" : null;
 
     const codiceVisivo = getCodiceVisivo(commessa);     // "C8888-11"
-    const segmentoFile = getSegmentoNomeFile(commessa); // "BBB_dvdvd_P_C8888-11"
+// NON usiamo più il segmento lungo per il nome file
+const commessaStr = codiceVisivo;                   // uniformiamo al formato T
+
 
     const numeroDdt = numeroBolla + "W";
     const dataDdt = oggiStr().replace(/-/g, "/");
@@ -357,8 +359,10 @@ export default function BollaFormEntrata({ onClose, commessa, reportDdtPath }) {
     const nsDdt = formValues["Ns DDT"] || "";
     const del = formValues["del"] || "";
     const percorsoPdf = materialiPath
-      ? materialiPath + "\\" + `DDT_${numeroBolla}W_${segmentoFile}_${oggiStr()}.pdf`
-      : "";
+  ? materialiPath + "\\" + `DDT_${numeroBolla}W_${commessaStr}_${oggiStr()}.pdf`
+  : "";
+
+
 
     const oreLavorazione = await calcolaOreLavorate(pathBase);
     const prezzoVendita = await getPrezzoVenditaDaReport(commessa);
@@ -441,8 +445,7 @@ export default function BollaFormEntrata({ onClose, commessa, reportDdtPath }) {
       return;
     }
 
-    const codiceVisivo = getCodiceVisivo(commessa);     // es: "C8888-11"
-    const segmentoFile = getSegmentoNomeFile(commessa); // es: "BBB_dvdvd_P_C8888-11"
+    const commessaStr = getCodiceVisivo(commessa);      // es: "C8888-11"
 
     if (materialiPath) {
       const esisteGia = await checkBollaEntrataGiaGenerata(materialiPath, segmentoFile, codiceVisivo);
@@ -500,7 +503,7 @@ export default function BollaFormEntrata({ onClose, commessa, reportDdtPath }) {
     });
 
     const dataFile = oggiStr();
-    const nomeFile = `DDT_${nuovoNumeroPuro}W_${segmentoFile}_${dataFile}.pdf`; // ✅ filename "ricco" come da regex Python
+    const nomeFile = `DDT_${nuovoNumeroPuro}W_${commessaStr}_${dataFile}.pdf`; // ✅ filename "ricco" come da regex Python
 
     const pdfBytes = await pdfDoc.save();
     const blob = new Blob([pdfBytes], { type: "application/pdf" });
