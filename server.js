@@ -663,48 +663,12 @@ async function creaBollaEntrataConExcel(folderPath, advance = true, opts = {}) {
 // ───────────────────────────────────────────────────────────────────────────────
 app.post('/api/genera-bolla-entrata', async (req, res) => {
   try {
-    const { folderPath, advance = true, reportDdtPath, extra } = req.body || {};
+    const { folderPath, advance = true, extra } = req.body || {};
     if (!folderPath || !fs.existsSync(folderPath)) {
       return res.status(400).json({ ok:false, error: 'folderPath non valido' });
     }
-    // usa la funzione unica
-    const r = await generaBollaEntrata({ folderPath, advance });
-    if (!r?.ok) return res.status(500).json({ ok:false, error: r?.error || 'Errore generazione PDF' });
-
-    // opzionale: logga anche su Excel se passato reportDdtPath
-    if (reportDdtPath && fs.existsSync(reportDdtPath)) {
-      try {
-        const datiReport = fs.existsSync(path.join(folderPath,'report.json'))
-          ? JSON.parse(fs.readFileSync(path.join(folderPath,'report.json'), 'utf8') || '{}')
-          : {};
-        const payload = {
-          reportDdtPath,
-          datiDdt: {
-            dataDdt: oggiStrSlash(),
-            numeroDdt: r.numeroDoc,                    // "0001W"
-            codiceCommessa: r.codiceVisivo,            // "C8888-11"
-            quantita: (datiReport?.quantita ?? ''),
-            colli: getColliDaReportSync(folderPath, ''),
-            nsDdt: '',                                  // se vuoi popolare, usa findUscitaOptional come in generaBollaEntrata
-            del: '',
-            percorsoPdf: path.join(r.materialiPath, r.fileName),
-            oreLavorazione: extra?.oreLavorazione ?? '',
-            costoPz: extra?.costoPz ?? '',
-            costoTot: extra?.costoTot ?? '',
-            folderPath,
-            descrizione: 'Assembraggio ' + path.basename(folderPath),
-            nomeCommessa: path.basename(folderPath),
-            prezzoVendita: (datiReport?.prezzoVendita ?? 0),
-          }
-        };
-        fetch('http://127.0.0.1:3001/api/genera-ddt-excel', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).catch(() => {});
-      } catch {}
-    }
-
+    const r = await creaBollaEntrataConExcel(folderPath, advance, { source: 'manual', extra });
+    if (!r?.ok) return res.status(500).json({ ok:false, error: r?.error || r?.msg || 'Errore generazione PDF' });
     res.json({ ok:true, ...r });
   } catch (e) {
     res.status(500).json({ ok:false, error: e?.message || String(e) });
@@ -1004,8 +968,17 @@ try {
   const prima = existing?.archiviata === true || existing?.archiviata === 'true';
   const dopo  = merged?.archiviata === true   || merged?.archiviata === 'true';
   if (!prima && dopo) {
-    setTimeout(async () => {
-      const r = await generaBollaEntrata({ folderPath, advance: true });
+  setTimeout(async () => {
+    const r = await creaBollaEntrataConExcel(folderPath, true, { source: 'auto' });
+    if (!r?.ok) {
+      console.warn('[auto-bolla-entrata] errore:', r?.error || r?.msg);
+      return;
+    }
+    console.log('[auto-bolla-entrata] creata:', r.fileName);
+  }, 0);
+}
+
+
 
       if (!r?.ok) {
         console.warn('[auto-bolla-entrata] errore:', r?.error);
