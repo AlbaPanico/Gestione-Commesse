@@ -948,91 +948,47 @@ app.get('/api/report', (req, res) => {
 app.post('/api/report', (req, res) => {
   const { folderPath, reportData } = req.body;
   if (!folderPath || !reportData) return res.status(400).json({ message: 'I parametri folderPath e reportData sono obbligatori.' });
+
   const reportFilePath = path.join(folderPath, 'report.json');
+
   try {
     let existing = {};
     if (fs.existsSync(reportFilePath)) {
       const raw = fs.readFileSync(reportFilePath, 'utf8');
       existing = raw.trim() ? JSON.parse(raw) : {};
     }
+
     const merged = { ...existing, ...reportData };
+
     const nuovo = JSON.stringify(merged, null, 2);
-    let vecchio = ''; if (fs.existsSync(reportFilePath)) try { vecchio = fs.readFileSync(reportFilePath, 'utf8'); } catch {}
+    let vecchio = '';
+    if (fs.existsSync(reportFilePath)) {
+      try { vecchio = fs.readFileSync(reportFilePath, 'utf8'); } catch {}
+    }
     if (nuovo !== vecchio) fs.writeFileSync(reportFilePath, nuovo);
 
     const parentFolder = path.dirname(folderPath);
     refreshCommesseJSON(parentFolder);
     notifyClients();
-// ── Trigger: se archiviata passa da false -> true, genera la W automaticamente
-try {
-  const prima = existing?.archiviata === true || existing?.archiviata === 'true';
-  const dopo  = merged?.archiviata === true   || merged?.archiviata === 'true';
-  if (!prima && dopo) {
-  setTimeout(async () => {
-    const r = await creaBollaEntrataConExcel(folderPath, true, { source: 'auto' });
-    if (!r?.ok) {
-      console.warn('[auto-bolla-entrata] errore:', r?.error || r?.msg);
-      return;
+
+    // ── Trigger: se archiviata passa da false -> true, genera la W automaticamente
+    try {
+      const prima = existing?.archiviata === true || existing?.archiviata === 'true';
+      const dopo  = merged?.archiviata === true   || merged?.archiviata === 'true';
+
+      if (!prima && dopo) {
+        setTimeout(async () => {
+          const r = await creaBollaEntrataConExcel(folderPath, true, { source: 'auto' });
+          if (!r?.ok) {
+            console.warn('[auto-bolla-entrata] errore:', r?.error || r?.msg);
+            return;
+          }
+          console.log('[auto-bolla-entrata] creata:', r.fileName);
+        }, 0);
+      }
+    } catch (e) {
+      console.warn('[auto-bolla-entrata] warning:', e?.message || String(e));
     }
-    console.log('[auto-bolla-entrata] creata:', r.fileName);
-  }, 0);
-}
-
-
-
-      if (!r?.ok) {
-        console.warn('[auto-bolla-entrata] errore:', r?.error);
-        return;
-      }
-      console.log('[auto-bolla-entrata] creata:', r.fileName);
-
-      // (FACOLTATIVO) logga anche su Excel Work, se impostato il path in impostazioni
-      try {
-        const settings = fs.existsSync(settingsFilePath)
-          ? JSON.parse(fs.readFileSync(settingsFilePath, 'utf8') || '{}')
-          : {};
-        const reportDdtPath = settings.reportDdtPath;
-        if (reportDdtPath && fs.existsSync(reportDdtPath)) {
-          const datiReport = fs.existsSync(path.join(folderPath,'report.json'))
-            ? JSON.parse(fs.readFileSync(path.join(folderPath,'report.json'), 'utf8') || '{}')
-            : {};
-          const payload = {
-            reportDdtPath,
-            datiDdt: {
-              dataDdt: oggiStrSlash(),
-              numeroDdt: r.numeroDoc,
-              codiceCommessa: r.codiceVisivo,         // es. C8888-11
-              quantita: (datiReport?.quantita ?? ''),
-              colli: getColliDaReportSync(folderPath, ''),
-            nsDdt: '',   // resta vuoto se non c'è T
-del: '',     // resta vuoto se non c'è T
-
-
-              percorsoPdf: path.join(r.materialiPath, r.fileName),
-              oreLavorazione: '',                      // se vuoi, qui puoi sommare le ore dal tuo report produzione
-              costoPz: '',
-              costoTot: '',
-              folderPath: folderPath,
-              descrizione: 'Assembraggio ' + path.basename(folderPath),
-              nomeCommessa: path.basename(folderPath),
-              prezzoVendita: (datiReport?.prezzoVendita ?? 0),
-            }
-          };
-          // chiama il tuo stesso endpoint locale senza bloccare questa response
-          fetch('http://127.0.0.1:3001/api/genera-ddt-excel', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          }).catch(err => console.warn('[auto-bolla-entrata] Excel warn:', err?.message || String(err)));
-        }
-      } catch (e) {
-        console.warn('[auto-bolla-entrata] Excel warn:', e?.message || String(e));
-      }
-    }, 0);
-  }
-} catch (e) {
-  console.warn('[auto-bolla-entrata] warning:', e?.message || String(e));
-}
 
     res.status(200).json({ message: 'Report aggiornato con successo.' });
   } catch (error) {
