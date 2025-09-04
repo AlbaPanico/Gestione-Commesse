@@ -37,11 +37,17 @@ class DebouncedPusher:
         run("git add -A")
         status = run("git status --porcelain")
         if not status.stdout.strip():
-            return  # nessun cambiamento
+            print("[skip] nulla da committare")
+            return
 
         commit = run(f'git commit -m "auto: sync {ts}"')
         if commit.returncode != 0:
-            print("[ERRORE COMMIT]", commit.stderr.strip())
+            # Alcune versioni di Git scrivono "nothing to commit" su stderr: non è un errore reale
+            out = (commit.stdout + "\n" + commit.stderr).lower()
+            if "nothing to commit" in out or "no changes added to commit" in out:
+                print("[skip] nulla da committare")
+                return
+            print("[ERRORE COMMIT]", (commit.stderr or commit.stdout).strip())
             return
 
         push = run(f"git push origin {BRANCH}")
