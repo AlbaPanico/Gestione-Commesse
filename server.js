@@ -302,7 +302,9 @@ app.post('/api/avanza-bolla', (req, res) => {
 
   // Nome file: DDT_<NNNNT>_<Cxxxx[-yy]>_<dd-mm-yyyy>.pdf
   const folderPath = req.body?.folderPath || '';
-  const codiceVisivo = folderPath ? getCodiceCommessaVisuale(folderPath) : '';
+  let codiceVisivoRaw = folderPath ? getCodiceCommessaVisuale(folderPath) : '';
+let codiceVisivo = normalizeCodiceVisivo(codiceVisivoRaw);
+
   const suffissoC = codiceVisivo ? `_${codiceVisivo}` : '';
   const nomeFileSuggerito = `DDT_${String(progressivo).padStart(4,'0')}T${suffissoC}_${oggiStr()}.pdf`;
 
@@ -417,6 +419,24 @@ function getCodiceCommessaVisuale(folderPath) {
   const m = base.match(/_C([A-Za-z0-9\-]+)$/);
   return m ? ('C' + m[1]) : '';
 }
+
+function normalizeCodiceVisivo(input) {
+  const s = String(input || '').trim();
+  if (!s) return '';
+
+  // caso tipico preso dal nome cartella: "..._C9999-11"
+  let m = s.match(/_C([A-Za-z0-9\-]+)$/);
+  if (m) return 'C' + m[1];
+
+  // se è già "C..." lascialo così
+  if (/^C[A-Za-z0-9\-]+$/.test(s)) return s;
+
+  // stringhe tipo "AAA_aaa_P123_C9999" -> prendi l’ultimo token che inizia con C
+  const parts = s.split('_').filter(Boolean);
+  const lastC = [...parts].reverse().find(p => /^C[A-Za-z0-9\-]+$/.test(p));
+  return lastC || '';
+}
+
 
 // Somma colli da report.json (fallback opzionale)
 function getColliDaReportSync(folderPath, fallback = '') {
