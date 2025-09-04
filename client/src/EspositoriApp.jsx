@@ -159,7 +159,7 @@ export default function EspositoriApp({ onLogout, onHome }) {
   const [percorsoCartella, setPercorsoCartella] = useState('');
   const [emailDestinatariApertura, setEmailDestinatariApertura] = useState("");
   const [emailDestinatariLavorazione, setEmailDestinatariLavorazione] = useState("");
-
+  const [reportDdtPath, setReportDdtPath] = useState("");
   const [commesse, setCommesse] = useState([]);
   const [commessaSelezionata, setCommessaSelezionata] = useState(null);
   const [originalNome, setOriginalNome] = useState("");
@@ -323,6 +323,7 @@ const handleCloseCommessa = async () => {
           setEmailContenuto(data.settings.emailContenuto || "");
 setMasterBolleUscita(data.settings.masterBolleUscita || "");
     setMasterBolleEntrata(data.settings.masterBolleEntrata || "");
+setReportDdtPath(data.settings.reportDdtPath || "");
         }
       })
       .catch(err => console.error("Errore leggendo le impostazioni dal server:", err));
@@ -500,7 +501,8 @@ fineProduzioneEffettiva: c.fineProduzioneEffettiva || null,
         emailOggetto,
         emailContenuto,
         masterBolleUscita,
-        masterBolleEntrata
+        masterBolleEntrata,
+reportDdtPath
       })
     })
       .then(res => {
@@ -861,6 +863,20 @@ ${linkCartella}
       />
     </div>
 
+<div>
+  <label className="block mb-1 font-semibold" htmlFor="reportDdtPath">
+    Percorso salvataggio Report DDT
+  </label>
+  <Input
+    id="reportDdtPath"
+    type="text"
+    placeholder="Percorso dove salvare il report DDT (es: \\\\server\\cartella\\REPORT_DDT)"
+    value={reportDdtPath}
+    onChange={e => setReportDdtPath(e.target.value)}
+  />
+</div>
+
+
                           </div>
                           <DialogFooter>
                             <Button type="button" onClick={handleSaveSettings}>Salva</Button>
@@ -1050,6 +1066,7 @@ className="text-white"
       quantita={selectedCommessaForCalendar ? selectedCommessaForCalendar.quantita : "N.D."}
       archiviata={!!selectedCommessaForCalendar?.archiviata}
       masterBolleEntrata={masterBolleEntrata}
+reportDdtPath={reportDdtPath}
       onClose={() => {
         setModalCalendarOpen(false);
         fetchCommesse(percorsoCartella, cartellaDaClonare); // refresh

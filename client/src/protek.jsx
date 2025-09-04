@@ -1,262 +1,196 @@
-// src/Protek.jsx
+// File: protek.jsx
+import React, { useEffect, useMemo, useState } from "react";
 
-import React, { useState, useEffect } from "react";
-import { Settings, Home, RefreshCw } from "lucide-react";
-import NewSlideProtek from "./NewSlideProtek";
-
-const SERVER = "http://192.168.1.250:3001";
-
-// Colonne preferite (ordine in alto, ma mostro tutte le colonne)
-const PREFERRED_COLUMNS = [
-  "ID",
-  "PART_PROGRAM_ID",
-  "NAME",
-  "HASH",
-  "PATH",
-  "CURRENTFILE",
-  "DATE_CREATED",
-  "LAST_UPDATED"
-];
-
-// Legge i CSV dal backend dati tutti i percorsi monitorPaths
-async function fetchAllCsvRows() {
-  // 1. Recupera i percorsi file monitoraggio salvati
-  const res = await fetch(`${SERVER}/api/protek/settings`);
-  const data = await res.json();
-  const monitorPaths = Array.isArray(data.monitorPaths)
-    ? data.monitorPaths.filter(Boolean)
-    : data.monitorPath
-    ? [data.monitorPath]
-    : [];
-  if (!monitorPaths.length) return { columns: PREFERRED_COLUMNS, rows: [] };
-
-  // 2. Recupera i dati da ogni CSV, unifica tutte le righe, crea l’elenco colonne unito
-  let allRows = [];
-  let allColumns = new Set();
-  for (let path of monitorPaths) {
-    if (!path || !path.trim()) continue;
-    try {
-      // Chiama backend: ritorna { headers, rows }
-      const r = await fetch(`${SERVER}/api/stampanti/latest-csv?folder=${encodeURIComponent(path.replace(/\\/g, "/").replace(/\/[^\/]*$/, ""))}`);
-      const json = await r.json();
-      if (json && json.headers && json.rows) {
-        json.rows.forEach(rowArr => {
-          let obj = {};
-          json.headers.forEach((k, i) => {
-            obj[k] = rowArr[i];
-            allColumns.add(k);
-          });
-          allRows.push(obj);
-        });
-      }
-    } catch (e) {
-      // Se il CSV non viene letto, ignora
-      continue;
-    }
-  }
-
-  // 3. Ordina le colonne: preferite in alto, poi tutte le altre in ordine
-  const allCols = [...PREFERRED_COLUMNS, ...[...allColumns].filter(c => !PREFERRED_COLUMNS.includes(c))];
-
-  // 4. Ordina le righe (data più recente sopra, se disponibile)
-  allRows.sort((a, b) => {
-    const d1 = new Date(a.LAST_UPDATED || a.DATE_CREATED || 0);
-    const d2 = new Date(b.LAST_UPDATED || b.DATE_CREATED || 0);
-    return d2 - d1;
+/** Utilità formattazione */
+function fmtDate(ts) {
+  if (!ts) return "—";
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return "—";
+  // dd/MM/yyyy HH:mm
+  return d.toLocaleString("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
-
-  return { columns: allCols, rows: allRows };
 }
 
-export default function Protek({ onBack }) {
-  const [isNewSlide, setIsNewSlide] = useState(false);
-  const [columns, setColumns] = useState(PREFERRED_COLUMNS);
+function fmtDuration(start, end) {
+  if (!start || !end) return "—";
+  const a = new Date(start).getTime();
+  const b = new Date(end).getTime();
+  if (Number.isNaN(a) || Number.isNaN(b) || b < a) return "—";
+  const ms = b - a;
+  const mins = Math.floor(ms / 60000);
+  const hh = Math.floor(mins / 60);
+  const mm = mins % 60;
+  return `${hh}h ${mm}m`;
+}
+
+export default function ProtekPage() {
   const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [stateFilter, setStateFilter] = useState("ALL");
+  const [refreshedAt, setRefreshedAt] = useState("");
 
-  const btnStyle = {
-    padding: "10px 20px",
-    background: "#1A202C",
-    color: "#fff",
-    border: "none",
-    borderRadius: 8,
-    cursor: "pointer",
-    boxShadow: "0 4px 6px rgba(0,0,0,.3)",
-    transition: "transform .2s"
-  };
-  const btnHover = {
-    transform: "scale(1.05)",
-    boxShadow: "0 6px 8px rgba(0,0,0,.4)"
-  };
-
-  // Carica i dati dal backend CSV
-  const fetchData = async () => {
-    setLoading(true);
+  const load = async () => {
     try {
-      const { columns, rows } = await fetchAllCsvRows();
-      setColumns(columns);
-      setRows(rows);
-    } catch {
-      setColumns(PREFERRED_COLUMNS);
-      setRows([]);
+      setLoading(true);
+      setError("");
+      const res = await fetch("/api/protek/programs");
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const j = await res.json();
+       const programs = Array.isArray(j?.programs) ? j.programs : [];
+ setRows(programs);
+ // se vuoi mostrare il path monitorato:
+ setRefreshedAt(new Date().toISOString());
+ // opzionale: tieni anche meta per mostrarlo a schermo
+ // setMeta(j.meta);  // e poi leggi meta.monitorPath nel render
+      setRefreshedAt(new Date().toISOString());
+    } catch (e) {
+      setError(String(e?.message || e));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  // Carica dati all’avvio
   useEffect(() => {
-    fetchData();
-    // eslint-disable-next-line
+    load();
   }, []);
 
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter((r) => {
+      const passesSearch =
+        !q ||
+        (r.code || "").toLowerCase().includes(q) ||
+        (r.description || "").toLowerCase().includes(q) ||
+        (r.customer || "").toLowerCase().includes(q);
+
+      const passesState =
+        stateFilter === "ALL" ||
+        (r.latestState || "").toLowerCase() === stateFilter.toLowerCase();
+
+      return passesSearch && passesState;
+    });
+  }, [rows, search, stateFilter]);
+
   return (
-    <div style={{
-      width: "100vw",
-      height: "100vh",
-      background: "#28282B",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      position: "relative",
-      overflow: "auto"
-    }}>
-      {/* Home */}
-      <div style={{ position: "absolute", top: 10, left: 10 }}>
-        <button
-          style={btnStyle}
-          onMouseOver={e => Object.assign(e.currentTarget.style, btnHover)}
-          onMouseOut={e => Object.assign(e.currentTarget.style, btnStyle)}
-          onClick={onBack}
-          title="Torna allo Splash"
-        >
-          <Home size={24} />
-        </button>
-      </div>
-      {/* Impostazioni */}
-      <div style={{ position: "absolute", top: 10, right: 80 }}>
-        <button
-          style={btnStyle}
-          onMouseOver={e => Object.assign(e.currentTarget.style, btnHover)}
-          onMouseOut={e => Object.assign(e.currentTarget.style, btnStyle)}
-          onClick={() => setIsNewSlide(true)}
-          title="Cambia impostazioni"
-        >
-          <Settings size={24} />
-        </button>
-      </div>
-      {/* Aggiorna */}
-      <div style={{ position: "absolute", top: 10, right: 10 }}>
-        <button
-          style={btnStyle}
-          onMouseOver={e => Object.assign(e.currentTarget.style, btnHover)}
-          onMouseOut={e => Object.assign(e.currentTarget.style, btnStyle)}
-          onClick={fetchData}
-          title="Aggiorna dati"
-        >
-          <RefreshCw size={24} />
-        </button>
-      </div>
-
-      <h1 style={{ color: "#fff", marginBottom: 20 }}>Pagina Protek</h1>
-
-      {/* Tabella dati */}
-      <div
-        style={{
-          width: "96vw",
-          height: "75vh",
-          maxWidth: 1800,
-          margin: "24px 0",
-          background: "#23232b",
-          borderRadius: 10,
-          boxShadow: "0 2px 10px #0005",
-          display: "flex",
-          flexDirection: "column",
-          padding: 0,
-          overflow: "hidden"
-        }}
-      >
-        <div
-          style={{
-            flex: 1,
-            width: "100%",
-            height: "100%",
-            overflowX: "auto",
-            overflowY: "auto",
-          }}
-        >
-          {loading ? (
-            <div style={{ color: "#fff", padding: 30 }}>Caricamento dati...</div>
-          ) : (
-            <table
-              style={{
-                borderCollapse: "collapse",
-                width: "100%",
-                minWidth: 1200,
-                fontSize: 15,
-                background: "#23232b",
-              }}
-            >
-              <thead style={{ position: "sticky", top: 0, zIndex: 2 }}>
-                <tr>
-                  {columns.map((col, i) => (
-                    <th
-                      key={i}
-                      style={{
-                        border: "1px solid #aaa",
-                        padding: "6px 10px",
-                        background: "#1A202C",
-                        color: "#fff",
-                        whiteSpace: "nowrap",
-                        position: "sticky",
-                        top: 0,
-                        zIndex: 2
-                      }}
-                    >
-                      {col}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, i) => (
-                  <tr key={i}>
-                    {columns.map((col, ci) => (
-                      <td
-                        key={ci}
-                        style={{
-                          border: "1px solid #555",
-                          padding: "6px 10px",
-                          color: "#fff",
-                          whiteSpace: "nowrap",
-                          verticalAlign: "middle",
-                          fontFamily: "inherit"
-                        }}
-                      >
-                        {row[col] !== undefined && row[col] !== null ? row[col] : ""}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+    <div className="w-full h-full flex flex-col gap-3 p-4">
+      {/* HEADER + TOOLBAR */}
+      <div className="flex items-center justify-between">
+        <div className="text-xl font-semibold">Protek – Monitor Lavorazioni</div>
+        <div className="flex items-center gap-2">
+          <button
+            className="px-3 py-1 rounded-xl shadow text-sm hover:shadow-md"
+            onClick={load}
+            title="Aggiorna"
+          >
+            Aggiorna
+          </button>
         </div>
       </div>
 
-      {/* Bottone impostazioni */}
-      {isNewSlide && (
-        <NewSlideProtek
-          printers={[]}
-          monitorJsonPath={""}
-          reportGeneralePath={""}
-          onClose={() => {
-            setIsNewSlide(false);
-            // aggiorna subito i dati quando chiudi la slide impostazioni
-            fetchData();
-          }}
-        />
-      )}
+      {/* BARRA INFO + FILTRI */}
+      <div className="text-xs text-gray-500 flex items-center gap-3 flex-wrap">
+        <div>
+          Path monitorato:{" "}
+          <span className="font-mono">{rows?.meta?.monitorPath || "—"}</span>
+        </div>
+        <div>
+          • aggiornato:{" "}
+          {refreshedAt
+            ? new Date(refreshedAt).toLocaleString("it-IT")
+            : "—"}
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <input
+            className="border rounded-lg px-2 py-1 text-sm"
+            placeholder="Cerca per codice/descrizione/cliente"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <select
+            className="border rounded-lg px-2 py-1 text-sm"
+            value={stateFilter}
+            onChange={(e) => setStateFilter(e.target.value)}
+            title="Filtro stato"
+          >
+            <option value="ALL">Tutti gli stati</option>
+            {/* stati più frequenti visibili come opzioni */}
+            <option value="STARTED">STARTED</option>
+            <option value="RUNNING">RUNNING</option>
+            <option value="PAUSED">PAUSED</option>
+            <option value="FINISHED">FINISHED</option>
+            <option value="DONE">DONE</option>
+          </select>
+        </div>
+      </div>
+
+      {/* TABELLA */}
+      <div className="flex-1 overflow-auto rounded-2xl border">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 bg-gray-50">
+            <tr className="text-left">
+              <th className="p-2">Program Code</th>
+              <th className="p-2">Descrizione</th>
+              <th className="p-2">Cliente</th>
+              <th className="p-2">Stato</th>
+              <th className="p-2">Inizio</th>
+              <th className="p-2">Fine</th>
+              <th className="p-2">Durata</th>
+              <th className="p-2"># Lavorazioni</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading && (
+              <tr>
+                <td colSpan={8} className="p-6 text-center text-gray-400">
+                  Caricamento…
+                </td>
+              </tr>
+            )}
+            {!loading && error && (
+              <tr>
+                <td colSpan={8} className="p-6 text-center text-red-500">
+                  Errore: {error}
+                </td>
+              </tr>
+            )}
+            {!loading && !error && filtered.length === 0 && (
+              <tr>
+                <td colSpan={8} className="p-6 text-center text-gray-400">
+                  Nessun dato da mostrare
+                </td>
+              </tr>
+            )}
+            {!loading &&
+              !error &&
+              filtered.map((r) => (
+                <tr key={r.id} className="border-t hover:bg-gray-50">
+                  <td className="p-2 font-mono">{r.code || "—"}</td>
+                  <td className="p-2">{r.description || "—"}</td>
+                  <td className="p-2">{r.customer || "—"}</td>
+                  <td className="p-2">{r.latestState || "—"}</td>
+                  <td className="p-2">{fmtDate(r.startTime)}</td>
+                  <td className="p-2">{fmtDate(r.endTime)}</td>
+                  <td className="p-2">{fmtDuration(r.startTime, r.endTime)}</td>
+                  <td className="p-2">{r.numWorkings ?? 0}</td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* FOOTER */}
+      <div className="text-xs text-gray-500">
+        Totale jobs: <b>{rows?.length ?? 0}</b>
+      </div>
     </div>
   );
 }

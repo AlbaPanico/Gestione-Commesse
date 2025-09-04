@@ -8,7 +8,7 @@ import Protek from "./Protek"; // <--- AGGIUNTO
 
 export default function App() {
   const [view, setView] = useState("login");
-  const wsRef = useRef(null);
+ 
   const currentUser = sessionStorage.getItem("currentUser");
 
   const handleContinue = () => {
@@ -58,19 +58,7 @@ export default function App() {
       if (response.ok) {
         sessionStorage.setItem("currentUser", JSON.stringify(data.user));
         setView("splash");
-        wsRef.current = new WebSocket("ws://192.168.1.250:3001");
-        wsRef.current.onopen = () => {
-          wsRef.current.send(
-            JSON.stringify({ type: "registerUser", email: data.user.email })
-          );
-          console.log("✅ WebSocket aperto:", data.user.email);
-        };
-        wsRef.current.onerror = (err) => {
-          console.error("❌ WebSocket errore:", err);
-        };
-        wsRef.current.onclose = () => {
-          console.log("🔴 WebSocket chiuso");
-        };
+        
       } else {
         alert(data.error || "Credenziali non valide.");
       }
@@ -91,10 +79,7 @@ export default function App() {
     } catch (error) {
       console.error("Errore durante il logout:", error);
     } finally {
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
+      
       sessionStorage.removeItem("currentUser");
       setView("login");
     }

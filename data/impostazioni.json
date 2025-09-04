@@ -6,5 +6,6 @@
   "emailOggetto": "",
   "emailContenuto": "",
   "masterBolleUscita": "\\\\192.168.1.248\\time dati\\ARCHIVIO TECNICO\\APPLICAZIONI\\DDT WORK GROUP_MASTER fine AUTO5.pdf",
-  "masterBolleEntrata": "\\\\192.168.1.248\\time dati\\ARCHIVIO TECNICO\\APPLICAZIONI\\DDT WTIME GROUP_MODfine Auto5.pdf"
+  "masterBolleEntrata": "\\\\192.168.1.248\\time dati\\ARCHIVIO TECNICO\\APPLICAZIONI\\DDT WTIME GROUP_MODfine Auto5.pdf",
+  "reportDdtPath": "\\\\192.168.1.248\\time dati\\ARCHIVIO TECNICO\\VARIE\\DDT WORK"
 }

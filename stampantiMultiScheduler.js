@@ -6,14 +6,25 @@ const http = require('http');
 const https = require('https');
 const { URL } = require('url');
 
+// === Helpers settimana ISO ===
+function getISOWeek(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  // Thursday in current week decides the year
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return weekNo;
+}
+function getISOWeekYear(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  return d.getUTCFullYear();
+}
+
+
 // 🔥 Importa la funzione di calcolo consumo (deve essere nel path giusto!)
 const { generaReportGenerali } = require('./generaReportGenerali');
 
-// === AGGIUNGI SUBITO QUI! ===
-function logToFile(obj) {
-  const line = JSON.stringify(obj, null, 0) + "\n";
-  fs.appendFileSync('debug_consumo.log', line);
-}
 
 const settingsPath = path.join(__dirname, 'data', 'stampantiSettings.json');
 
@@ -49,8 +60,75 @@ function downloadFile(url, dest, cb) {
   });
 }
 
-// GENERA REPORT ACL --> JSON, AGGIUNGI CONSUMO_KWH SOLO PER ARIZONA B E NON RESETTARE MAI
-function generaReportDaAclFile(aclFilePath, outputJsonPath, monitorJsonPath, nomeStampanteForza) {
+/* -----------------------------------------------------------
+   NUOVO: Rigenera il file settimanale a partire dai JSON per-stampante
+----------------------------------------------------------- */
+async function rigeneraSettimana(week, year) {
+  try {
+    // 1) recupera la cartella dei report dal settings
+    let reportGeneralePath = null;
+    if (fs.existsSync(settingsPath)) {
+      try {
+        const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        if (settings.reportGeneralePath && fs.existsSync(settings.reportGeneralePath)) {
+          reportGeneralePath = settings.reportGeneralePath;
+        }
+      } catch {}
+    }
+    if (!reportGeneralePath) reportGeneralePath = path.join(__dirname, "data");
+
+    // 2) leggi tutti i JSON per-stampante: Reportgenerali_<stampante>.json (escludi i settimanali)
+    const files = fs.readdirSync(reportGeneralePath)
+      .filter(f => /^Reportgenerali_.*\.json$/i.test(f))
+      .filter(f => !/^Reportgenerali_Stampanti_\d{1,2}_\d{4}\.json$/i.test(f)); // esclude i settimanali
+
+    const allRows = [];
+    for (const fname of files) {
+      const full = path.join(reportGeneralePath, fname);
+      let arr = [];
+      try {
+        const raw = fs.readFileSync(full, 'utf8');
+        arr = raw.trim() ? JSON.parse(raw) : [];
+      } catch { arr = []; }
+      if (!Array.isArray(arr) || arr.length === 0) continue;
+
+      // normalizza e calcola la data "giorno" da campo startdate / readydate / receptiondate
+      for (const r of arr) {
+        const dStr = (r.startdate || r.readydate || r.receptiondate || "").slice(0, 10);
+        let d = null;
+        if (/\d{4}-\d{2}-\d{2}/.test(dStr)) {
+          d = new Date(dStr + "T00:00:00");
+        } else {
+          // fallback: oggi
+          const today = new Date();
+          d = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        }
+
+        const w = getISOWeek(d);
+        const y = getISOWeekYear(d);
+        if (w === Number(week) && y === Number(year)) {
+          allRows.push({
+            ...r,
+            source: fname,
+            giorno: d.toISOString().slice(0, 10)
+          });
+        }
+      }
+    }
+
+    // 3) scrivi/riscrivi il file settimanale
+    const weeklyFile = path.join(reportGeneralePath, `Reportgenerali_Stampanti_${week}_${year}.json`);
+    fs.writeFileSync(weeklyFile, JSON.stringify(allRows, null, 2), 'utf8');
+    console.log(`✅ Rigenerata settimana ${week}/${year}: ${weeklyFile} (${allRows.length} righe)`);
+  } catch (e) {
+    console.error("❌ Errore in rigeneraSettimana:", e);
+  }
+}
+
+/* -----------------------------------------------------------
+   GENERA REPORT ACL --> JSON, AGGIUNGI CONSUMO_KWH SOLO PER ARIZONA B E NON RESETTARE MAI
+----------------------------------------------------------- */
+async function generaReportDaAclFile(aclFilePath, outputJsonPath, monitorJsonPath, nomeStampanteForza) {
   if (!fs.existsSync(aclFilePath)) {
     console.warn("File ACL non trovato:", aclFilePath);
     return;
@@ -99,23 +177,17 @@ function generaReportDaAclFile(aclFilePath, outputJsonPath, monitorJsonPath, nom
 
   console.log("[DEBUG_MONITOR] monitorData length:", monitorData.length, monitorData[0], monitorData[monitorData.length - 1]);
 
-  // Funzione per calcolare consumo SOLO su ARIZONA B (la puoi lasciare anche vuota o con solo log, tanto ora usi quella globale)
+  // Funzione per calcolare consumo SOLO su ARIZONA B (ora bypass, la vera logica è globale)
   function calcConsumoKwh(r) {
     const device = String(r["Device"] || r["Dispositivo"] || "").replace(/\s+/g, " ").trim().toUpperCase();
     if (!device.includes("ARIZONA B")) {
-      logToFile({
-        type: "SKIP",
-        jobname: r.jobname,
-        motivo: "Non Arizona B",
-        device
-      });
+      
       return "";
     }
-    // (resto della funzione qui se vuoi log o debug... altrimenti la puoi pure togliere)
     return "";
   }
 
-  // Unisci senza duplicati (chiave: documentid + jobid + startdate)
+  // Unisci senza duplicati (chiave: jobid|jobname|printmode)
   const getKey = r =>
     (r["jobid"] || r["Job ID"] || r["documentid"] || "") + "|" +
     (r["jobname"] || "") + "|" +
@@ -123,25 +195,25 @@ function generaReportDaAclFile(aclFilePath, outputJsonPath, monitorJsonPath, nom
 
   const recordsMap = new Map(allRecords.map(r => [getKey(r), r]));
   newRecords.forEach(r => {
-    r["consumo_kwh"] = calcConsumoKwh(r); // puoi lasciarla anche vuota, tanto la vera logica ora è globale
-    logToFile({ type: "FINE_RIGA", jobname: r.jobname, consumo_kwh: r["consumo_kwh"], id: r["jobid"] || r["documentid"] });
+    r["consumo_kwh"] = calcConsumoKwh(r); // placeholder: log/skip
+    
     if (nomeStampanteForza) r["dispositivo"] = nomeStampanteForza;
     const key = getKey(r);
 
-    // Se in recordsMap esiste già una versione "Done", non sovrascrivere con una incompleta
+    // Se esiste già una versione "Done", non sovrascrivere con una incompleta
     if (recordsMap.has(key)) {
       const existing = recordsMap.get(key);
       if (
         (existing.result === "Done" || existing.result === "done") &&
         (!r.result || r.result !== "Done")
       ) {
-        return; // salto questa riga, tengo la "Done"
+        return; // tengo la "Done"
       }
     }
     recordsMap.set(key, r);
   });
 
-  // Ricalcola consumi dove mancano (retry su TUTTE) - ormai bypassato, ma lascialo per debug
+  // Ricalcola consumi dove mancano (retry su TUTTE) - ancora bypass per debug
   recordsMap.forEach((r, k) => {
     if (
       r["dispositivo"] &&
@@ -160,12 +232,26 @@ function generaReportDaAclFile(aclFilePath, outputJsonPath, monitorJsonPath, nom
   fs.writeFileSync(outputJsonPath, JSON.stringify(outputArr, null, 2));
   console.log(`✅ Report JSON aggiornato: ${outputJsonPath} (${outputArr.length} righe, consumo_kwh calcolato solo su Arizona B, campo dispositivo forzato: ${nomeStampanteForza})`);
 
-  // 👉 AGGIUNGI QUESTA CHIAMATA DOPO IL SALVATAGGIO DEL FILE JSON
+  // 👉 Mantieni la tua generazione generale
   if (
     outputJsonPath.endsWith('Reportgenerali_Arizona A.json') ||
     outputJsonPath.endsWith('Reportgenerali_Arizona B.json')
   ) {
-    generaReportGenerali();
+    try {
+      generaReportGenerali();
+    } catch (e) {
+      console.warn("⚠️ generaReportGenerali ha dato errore (non blocco):", e?.message || e);
+    }
+  }
+
+  // 👉 NUOVO: Rigenera SUBITO il settimanale corrente (pari passo)
+  try {
+    const now = new Date();
+    const w = getISOWeek(now);
+    const y = now.getFullYear();
+    await rigeneraSettimana(w, y);
+  } catch (e) {
+    console.warn("⚠️ rigeneraSettimana fallita (non blocco):", e?.message || e);
   }
 }
 
@@ -227,12 +313,13 @@ async function processPrinter(printer, monitorJsonPath) {
   console.log("👉 Salvo report JSON:", reportJsonPath);
 
   return new Promise(resolve => {
-    downloadFile(aclUrl, aclFilePath, (err) => {
+    downloadFile(aclUrl, aclFilePath, async (err) => {
       if (err) {
         console.error(`❌ Errore download ACL per ${nomeStampante}:`, err.message);
       } else {
         console.log(`✅ Scaricato ACL per ${nomeStampante}: ${lastFile}`);
-        generaReportDaAclFile(aclFilePath, reportJsonPath, monitorJsonPath, nomeStampante);
+        // genera e TRIGGER pari-passo dentro generaReportDaAclFile
+        await generaReportDaAclFile(aclFilePath, reportJsonPath, monitorJsonPath, nomeStampante);
       }
       resolve();
     });
@@ -263,4 +350,4 @@ function startMultiPrinterScheduler() {
   console.log("🔁 Multi-stampante scheduler avviato (ogni 3 secondi)!");
 }
 
-module.exports = { startMultiPrinterScheduler };
+module.exports = { startMultiPrinterScheduler, rigeneraSettimana };

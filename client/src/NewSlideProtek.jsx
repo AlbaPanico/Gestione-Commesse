@@ -1,418 +1,354 @@
-// src/NewSlideProtek.jsx
+// File: NewSlideProtek.jsx
+import React, { useEffect, useMemo, useState } from "react";
 
-import React, { useState, useRef, useEffect } from "react";
-
-const SERVER = "http://192.168.1.250:3001";
-
-function buildJsonUnificatoLink(nomePantografo) {
-  const cleaned = nomePantografo.trim().replace(/[\s]+/g, " ");
-  return `${SERVER}/report_generale/Reportgenerali_${encodeURIComponent(cleaned)}.json`;
+/** Utility fetch che NON esplode se il server risponde HTML */
+async function safeFetchJson(input, init) {
+  const res = await fetch(input, init);
+  const ct = res.headers.get("content-type") || "";
+  // Se il server non risponde JSON evito di fare res.json()
+  if (!ct.toLowerCase().includes("application/json")) {
+    const text = await res.text();
+    return { __nonJson: true, ok: res.ok, status: res.status, text };
+  }
+  const data = await res.json();
+  return { ok: res.ok, status: res.status, data };
 }
 
-export default function NewSlideProtek({
-  onClose,
-  printers: initialPrinters = [],
-  monitorJsonPath = "",
-  reportGeneralePath = ""
-}) {
-  const [stampanti, setStampanti] = useState([]);
-  const [monitorPaths, setMonitorPaths] = useState([""]);
-  const [reportGenerale, setReportGenerale] = useState(reportGeneralePath);
+export default function NewSlideProtek() {
+  // UI state
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
 
-  // Campi form aggiunta pantografi
-  const [newLink, setNewLink] = useState("");
-  const [newNome, setNewNome] = useState("");
-  const [editingIdx, setEditingIdx] = useState(-1);
-  const [editLink, setEditLink] = useState("");
-  const [editNome, setEditNome] = useState("");
-  const panelRef = useRef(null);
+  // settings
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [monitorPath, setMonitorPath] = useState("");   // UNC folder con i CSV
+  const [pantografi, setPantografi] = useState([]);     // opzionale: array di nomi/ID macchina
 
-  // Carica dati da backend all'apertura (e svuota form aggiunta)
+  // data
+  const [jobs, setJobs] = useState([]);
+  const [meta, setMeta] = useState(null);
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Carica impostazioni all'avvio
   useEffect(() => {
-    fetch(`${SERVER}/api/protek/settings`)
-      .then(res => res.json())
-      .then(data => {
-        if (data && Array.isArray(data.monitorPaths)) setMonitorPaths(data.monitorPaths.length ? data.monitorPaths : [""]);
-        else if (data && typeof data.monitorPath === "string") setMonitorPaths([data.monitorPath]);
-        if (data && Array.isArray(data.pantografi)) setStampanti(data.pantografi);
-        setNewLink("");
-        setNewNome("");
-      })
-      .catch(() => {});
+    (async () => {
+      setError("");
+      setInfo("");
+      const r = await safeFetchJson("/api/protek/settings");
+      if (r.__nonJson) {
+        setError("Impossibile leggere le impostazioni Protek (risposta non JSON).");
+        return;
+      }
+      if (!r.ok) {
+        setError("Errore nel recupero impostazioni Protek.");
+        return;
+      }
+      const s = r.data || {};
+      setMonitorPath(s.monitorPath || "");
+      setPantografi(Array.isArray(s.pantografi) ? s.pantografi : []);
+
+      // Se c’è già un monitorPath, proviamo a caricare i jobs
+      if (s.monitorPath) {
+        await loadJobs();
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    const handleKey = e => {
-      if (e.key === "Escape") saveSettingsAndClose();
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  });
-
-  const handleOverlayClick = e => {
-    if (!panelRef.current?.contains(e.target)) saveSettingsAndClose();
-  };
-
-  // Gestione aggiunta/rimozione file monitoraggio (array)
-  const handleMonitorChange = (idx, val) => {
-    setMonitorPaths(arr => arr.map((v, i) => (i === idx ? val : v)));
-  };
-  const handleAddMonitor = () => {
-    setMonitorPaths(arr => [...arr, ""]);
-  };
-  const handleRemoveMonitor = idx => {
-    setMonitorPaths(arr => arr.length > 1 ? arr.filter((_, i) => i !== idx) : [""]);
-  };
-
-  // Salva impostazioni e chiudi
-  const saveSettingsAndClose = () => {
-    fetch(`${SERVER}/api/protek/settings`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        monitorPaths: monitorPaths.filter(m => m.trim() !== ""),
-        pantografi: stampanti
-      }),
-    })
-      .then(res => res.json())
-      .then(() => {
-        onClose({
-          printers: stampanti,
-          monitor: monitorPaths.filter(m => m.trim() !== ""),
-          reportGenerale: reportGenerale.replace(/"/g, "").trim()
-        });
-      })
-      .catch(err => {
-        alert("Errore nel salvataggio delle impostazioni Protek: " + err);
-        onClose({
-          printers: stampanti,
-          monitor: monitorPaths.filter(m => m.trim() !== ""),
-          reportGenerale: reportGenerale.replace(/"/g, "").trim()
-        });
-      });
-  };
-
-  // Bottone aggiungi pantografo: aggiunge solo in lista (NON salva subito)
-  const handleAddStampante = () => {
-    if (!newLink.trim() || !newNome.trim()) return;
-    let link = buildJsonUnificatoLink(newNome);
-    setStampanti(prev => [
-      ...prev,
-      {
-        link: newLink.trim(),
-        nome: newNome.trim(),
-        jsonUnificatoLink: link
+  // ────────────────────────────────────────────────────────────────────────────
+  async function loadJobs() {
+    setLoading(true);
+    setError("");
+    setInfo("");
+    try {
+      const r = await safeFetchJson("/api/protek/jobs");
+      if (r.__nonJson) {
+        setError(
+          `Errore caricamento jobs: HTTP ${r.status} – ` +
+          `Percorso Protek non configurato o non raggiungibile.`
+        );
+        setJobs([]);
+        setMeta(null);
+        return;
       }
-    ]);
-    setNewLink("");
-    setNewNome("");
-  };
+      if (!r.ok) {
+        const msg = r.data?.error || "Errore sconosciuto";
+        setError(`Errore caricamento jobs: HTTP ${r.status} – ${msg}`);
+        setJobs([]);
+        setMeta(null);
+        return;
+      }
+      setJobs(r.data.jobs || []);
+      setMeta(r.data.meta || null);
+      if (!r.data.jobs || r.data.jobs.length === 0) {
+        setInfo("Nessun job trovato nei CSV correnti.");
+      }
+    } catch (e) {
+      setError(`Errore rete: ${String(e)}`);
+      setJobs([]);
+      setMeta(null);
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  const handleRemoveStampante = idx => {
-    setStampanti(prev => prev.filter((_, i) => i !== idx));
-    if (editingIdx === idx) setEditingIdx(-1);
-  };
+  // ────────────────────────────────────────────────────────────────────────────
+  async function saveSettings(e) {
+    e?.preventDefault?.();
+    setError("");
+    setInfo("");
 
-  const handleEdit = idx => {
-    setEditingIdx(idx);
-    setEditLink(stampanti[idx].link || "");
-    setEditNome(stampanti[idx].nome || "");
-  };
+    if (!monitorPath || !monitorPath.trim()) {
+      setError("Inserisci il percorso cartella CSV (monitorPath).");
+      return;
+    }
 
-  const handleSaveEdit = idx => {
-    if (!editLink.trim() || !editNome.trim()) return;
-    let link = buildJsonUnificatoLink(editNome);
-    setStampanti(prev =>
-      prev.map((s, i) =>
-        i === idx
-          ? {
-              link: editLink.trim(),
-              nome: editNome.trim(),
-              jsonUnificatoLink: link
-            }
-          : s
-      )
-    );
-    setEditingIdx(-1);
-  };
+    const body = { monitorPath: monitorPath.trim(), pantografi };
 
-  const handleCancelEdit = () => {
-    setEditingIdx(-1);
-  };
+    try {
+      const r = await safeFetchJson("/api/protek/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (r.__nonJson) {
+        setError("Salvataggio impostazioni: risposta non JSON.");
+        return;
+      }
+      if (!r.ok || !r.data?.ok) {
+        setError("Errore nel salvataggio impostazioni Protek.");
+        return;
+      }
+      setInfo("Impostazioni salvate.");
+      // Chiudo il pannello e ricarico i dati
+      setSettingsOpen(false);
+      await loadJobs();
+    } catch (e) {
+      setError(`Errore salvataggio impostazioni: ${String(e)}`);
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  const totalJobs = useMemo(() => jobs.length, [jobs]);
+
+  // ────────────────────────────────────────────────────────────────────────────
+  return (
+    <div className="w-full h-full flex flex-col gap-3 p-4">
+
+      {/* Toolbar */}
+      <div className="flex items-center justify-between">
+        <div className="text-xl font-semibold">Protek – Monitor Jobs</div>
+
+        <div className="flex items-center gap-2">
+          <button
+            className="px-3 py-1 rounded-xl shadow text-sm hover:shadow-md"
+            onClick={() => setSettingsOpen(true)}
+            title="Apri impostazioni Protek"
+          >
+            Impostazioni
+          </button>
+          <button
+            className="px-3 py-1 rounded-xl shadow text-sm hover:shadow-md"
+            onClick={loadJobs}
+            disabled={loading}
+            title="Ricarica dai CSV"
+          >
+            {loading ? "Carico..." : "Aggiorna"}
+          </button>
+        </div>
+      </div>
+
+      {/* Messaggi stato */}
+      {error ? (
+        <div className="p-2 rounded bg-red-100 text-red-700 text-sm">{error}</div>
+      ) : null}
+      {info ? (
+        <div className="p-2 rounded bg-blue-100 text-blue-700 text-sm">{info}</div>
+      ) : null}
+
+      {/* Meta path */}
+      {meta?.monitorPath ? (
+        <div className="text-xs text-gray-500">
+          Path monitorato: <span className="font-mono">{meta.monitorPath}</span>
+          {meta.generatedAt ? (
+            <span> • aggiornato: {new Date(meta.generatedAt).toLocaleString()}</span>
+          ) : null}
+        </div>
+      ) : (
+        <div className="text-xs text-gray-500">
+          Nessun percorso Protek configurato: apri <b>Impostazioni</b> e inserisci il path dei CSV.
+        </div>
+      )}
+
+      {/* Tabella Jobs (UNICA TABELLA) */}
+      <div className="flex-1 overflow-auto rounded-2xl border">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 bg-gray-50">
+            <tr className="text-left">
+              <th className="p-2">Job Code</th>
+              <th className="p-2">Descrizione</th>
+              <th className="p-2">Cliente</th>
+              <th className="p-2">Stato</th>
+              <th className="p-2">Q.ty Ordinate</th>
+              <th className="p-2">Pezzi da Nesting</th>
+              <th className="p-2">Ordini (riassunto)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {jobs.map((j) => {
+              const totQ = j?.totals?.qtyOrdered ?? 0;
+              const totP = j?.totals?.piecesFromNestings ?? 0;
+              return (
+                <tr key={j.id} className="border-t hover:bg-gray-50">
+                  <td className="p-2 font-medium">{j.code || "-"}</td>
+                  <td className="p-2">{j.description || "-"}</td>
+                  <td className="p-2">{j.customer || "-"}</td>
+                  <td className="p-2">{j.latestState || "-"}</td>
+                  <td className="p-2">{totQ}</td>
+                  <td className="p-2">{totP}</td>
+                  <td className="p-2">
+                    {Array.isArray(j.orders) && j.orders.length > 0 ? (
+                      <div className="flex flex-col gap-1">
+                        {j.orders.map((o) => (
+                          <div key={o.id} className="text-xs">
+                            <span className="font-mono">{o.code}</span>{" "}
+                            • q={o.qtyOrdered} • pezzi={o.piecesFromNestings} • stato={o.latestState || "-"}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">—</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+            {totalJobs === 0 ? (
+              <tr>
+                <td colSpan={7} className="p-6 text-center text-gray-400">
+                  Nessun dato da mostrare
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Footer piccolo */}
+      <div className="text-xs text-gray-500">Totale jobs: <b>{totalJobs}</b></div>
+
+      {/* ─────────── PANNELLO IMPOSTAZIONI (uguale a prima, con pulsante Chiudi) ─────────── */}
+      {settingsOpen && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-[1px] flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-[min(800px,94vw)] max-h-[90vh] overflow-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="text-lg font-semibold">Impostazioni Protek</div>
+              <button
+                className="px-3 py-1 rounded-xl shadow text-sm hover:shadow-md"
+                onClick={() => setSettingsOpen(false)}
+                title="Chiudi impostazioni"
+              >
+                Chiudi
+              </button>
+            </div>
+
+            {/* Corpo */}
+            <form className="p-4 flex flex-col gap-4" onSubmit={saveSettings}>
+              <div>
+                <label className="block text-sm font-medium">
+                  Percorso cartella CSV (monitorPath)
+                </label>
+                <input
+                  type="text"
+                  className="mt-1 w-full border rounded-lg p-2 font-mono"
+                  placeholder={`\\\\192.168.1.248\\time dati\\ARCHIVIO TECNICO\\Esportazioni 4.0\\PROTEK\\Ricevuti`}
+                  value={monitorPath}
+                  onChange={(e) => setMonitorPath(e.target.value)}
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Inserisci il percorso UNC dove si trovano i file CSV di Protek.
+                </p>
+              </div>
+
+              {/* opzionale: gestione elenco pantografi */}
+              <fieldset className="border rounded-lg p-3">
+                <legend className="text-sm font-medium px-1">Pantografi (opzionale)</legend>
+                <PantografiEditor value={pantografi} onChange={setPantografi} />
+              </fieldset>
+
+              <div className="flex items-center gap-2">
+                <button type="submit" className="px-3 py-2 rounded-xl shadow text-sm hover:shadow-md">
+                  Salva impostazioni
+                </button>
+                <button
+                  type="button"
+                  className="px-3 py-2 rounded-xl text-sm hover:shadow"
+                  onClick={() => setSettingsOpen(false)}
+                >
+                  Annulla
+                </button>
+                <div className="text-xs text-gray-500">
+                  Dopo il salvataggio la finestra si chiude e i dati vengono ricaricati.
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Editor semplice per array di pantografi */
+function PantografiEditor({ value, onChange }) {
+  const list = Array.isArray(value) ? value : [];
+
+  function add() {
+    onChange([...(list || []), { name: "", code: "" }]);
+  }
+  function update(i, k, v) {
+    const clone = [...list];
+    clone[i] = { ...clone[i], [k]: v };
+    onChange(clone);
+  }
+  function remove(i) {
+    const clone = [...list];
+    clone.splice(i, 1);
+    onChange(clone);
+  }
 
   return (
-    <div
-      onClick={handleOverlayClick}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.5)",
-        display: "flex",
-        justifyContent: "flex-end",
-        zIndex: 1000,
-      }}
-    >
-      <div
-        ref={panelRef}
-        style={{
-          width: "30%",
-          height: "100%",
-          background: "#4A5568",
-          padding: 20,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          boxShadow: "-4px 0 8px rgba(0,0,0,0.3)",
-        }}
-      >
-        {/* Pantografi */}
-        <div style={{ marginBottom: 8 }}>
-          <label style={{ color: "#fff", marginBottom: 4, display: "block" }}>
-            Incolla riferimenti Macchina:
-          </label>
-        </div>
-        <div style={{ background: "#374151", padding: 10, borderRadius: 6, marginBottom: 18 }}>
+    <div className="flex flex-col gap-2">
+      {list.length === 0 && (
+        <div className="text-xs text-gray-400">Nessun pantografo inserito.</div>
+      )}
+      {list.map((p, i) => (
+        <div key={i} className="grid grid-cols-2 gap-2 items-center">
           <input
-            autoFocus
-            value={newLink}
-            onChange={e => setNewLink(e.target.value)}
-            placeholder="Link (es: http://192.168.1.82/accounting)"
-            style={{
-              padding: 8,
-              borderRadius: 6,
-              border: "1px solid #ccc",
-              background: "#2D3748",
-              color: "#fff",
-              fontFamily: "monospace",
-              marginBottom: 8,
-              width: "100%"
-            }}
+            className="border rounded p-2"
+            placeholder="Nome"
+            value={p.name || ""}
+            onChange={(e) => update(i, "name", e.target.value)}
           />
-          <input
-            value={newNome}
-            onChange={e => setNewNome(e.target.value)}
-            placeholder="Nome Pantografo (es: Protek B)"
-            style={{
-              padding: 8,
-              borderRadius: 6,
-              border: "1px solid #ccc",
-              background: "#2D3748",
-              color: "#fff",
-              marginBottom: 8,
-              width: "100%"
-            }}
-          />
-          <button
-            style={{
-              width: "100%",
-              background: "#0074D9",
-              color: "#fff",
-              border: "none",
-              borderRadius: 6,
-              padding: "10px 0",
-              cursor: "pointer",
-              fontWeight: "bold",
-              fontSize: 16
-            }}
-            onClick={handleAddStampante}
-            title="Aggiungi Pantografo"
-          >Salva</button>
-        </div>
-        {/* Lista pantografi già inseriti */}
-        {stampanti.length > 0 && (
-          <div style={{ marginBottom: 18 }}>
-            <ul style={{ paddingLeft: 0, margin: 0 }}>
-              {stampanti.map((s, i) => (
-                <li key={i} style={{
-                  color: "#cbd5e1", fontSize: 15, marginBottom: 2,
-                  display: "flex", alignItems: "flex-start", flexDirection: "column"
-                }}>
-                  {editingIdx === i ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 5, width: "100%" }}>
-                      <input
-                        value={editLink}
-                        onChange={e => setEditLink(e.target.value)}
-                        placeholder="Link (es: http://192.168.1.82/accounting)"
-                        style={{
-                          padding: 6,
-                          borderRadius: 6,
-                          border: "1px solid #ccc",
-                          background: "#2D3748",
-                          color: "#fff",
-                          fontFamily: "monospace",
-                          marginBottom: 4
-                        }}
-                      />
-                      <input
-                        value={editNome}
-                        onChange={e => setEditNome(e.target.value)}
-                        placeholder="Nome Pantografo (es: Protek B)"
-                        style={{
-                          padding: 6,
-                          borderRadius: 6,
-                          border: "1px solid #ccc",
-                          background: "#2D3748",
-                          color: "#fff",
-                          marginBottom: 4
-                        }}
-                      />
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button
-                          onClick={() => handleSaveEdit(i)}
-                          style={{
-                            background: "#0074D9",
-                            color: "#fff",
-                            border: "none",
-                            borderRadius: 6,
-                            padding: "5px 12px",
-                            cursor: "pointer"
-                          }}
-                          title="Salva modifica"
-                        >Salva</button>
-                        <button
-                          onClick={handleCancelEdit}
-                          style={{
-                            background: "#e74c3c",
-                            color: "#fff",
-                            border: "none",
-                            borderRadius: 6,
-                            padding: "5px 12px",
-                            cursor: "pointer"
-                          }}
-                          title="Annulla modifica"
-                        >Annulla</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{
-                      width: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10
-                    }}>
-                      <button
-                        onClick={() => handleEdit(i)}
-                        title="Modifica"
-                        style={{
-                          background: "#ffd700",
-                          color: "#333",
-                          border: "none",
-                          borderRadius: "6px",
-                          fontWeight: "bold",
-                          fontSize: 14,
-                          width: 34,
-                          height: 28,
-                          marginRight: 0,
-                          cursor: "pointer"
-                        }}
-                      >Mod</button>
-                      <button
-                        onClick={() => handleRemoveStampante(i)}
-                        title="Rimuovi Pantografo"
-                        style={{
-                          background: "#e74c3c",
-                          color: "#fff",
-                          border: "none",
-                          borderRadius: "50%",
-                          width: 24,
-                          height: 24,
-                          fontWeight: "bold",
-                          fontSize: 16,
-                          cursor: "pointer"
-                        }}
-                      >×</button>
-                      <div style={{ flex: 1 }}>
-                        <b>{s.nome}:</b> {s.link}
-                        <br />
-                        <span style={{ fontSize: 12, color: "#b5f4ff" }}>
-                          Link JSON Unificato: {s.jsonUnificatoLink}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {/* Percorso monitoraggio: MULTIPLO */}
-        <label style={{ color: "#fff", marginBottom: 8 }}>
-          Incolla i percorsi dei file monitoraggio (uno per riga):
-        </label>
-        {monitorPaths.map((mp, idx) => (
-          <div key={idx} style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
+          <div className="flex gap-2">
             <input
-              value={mp}
-              onChange={e => handleMonitorChange(idx, e.target.value)}
-              placeholder={`Percorso file CSV monitoraggio #${idx + 1}`}
-              style={{
-                padding: 10,
-                borderRadius: 6,
-                border: "1px solid #ccc",
-                background: "#2D3748",
-                color: "#fff",
-                fontFamily: "monospace",
-                width: "85%",
-                marginRight: 8
-              }}
+              className="border rounded p-2 flex-1"
+              placeholder="Codice / ID"
+              value={p.code || ""}
+              onChange={(e) => update(i, "code", e.target.value)}
             />
-            <button
-              style={{
-                background: "#e74c3c",
-                color: "#fff",
-                border: "none",
-                borderRadius: "50%",
-                width: 26,
-                height: 26,
-                fontSize: 18,
-                fontWeight: "bold",
-                cursor: "pointer",
-                marginRight: 0
-              }}
-              onClick={() => handleRemoveMonitor(idx)}
-              disabled={monitorPaths.length === 1}
-              title="Rimuovi questo file"
-            >×</button>
+            <button type="button" className="px-2 rounded border" onClick={() => remove(i)}>
+              Rimuovi
+            </button>
           </div>
-        ))}
-        <button
-          onClick={handleAddMonitor}
-          style={{
-            marginBottom: 16,
-            width: "100%",
-            background: "#2ecc40",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            padding: "8px 0",
-            fontWeight: "bold",
-            fontSize: 16,
-            cursor: "pointer"
-          }}
-        >+ Aggiungi altro file monitoraggio</button>
-
-        {/* Percorso REPORT GENERALE */}
-        <label style={{ color: "#fff", marginBottom: 8 }}>
-          Incolla il percorso REPORT GENERALE:
-        </label>
-        <input
-          value={reportGenerale}
-          onChange={e => setReportGenerale(e.target.value)}
-          placeholder="C:\\report\\ReportGenerali.xlsx"
-          style={{
-            padding: 10,
-            borderRadius: 6,
-            border: "1px solid #ccc",
-            background: "#2D3748",
-            color: "#fff",
-            fontFamily: "monospace",
-            marginBottom: 16,
-          }}
-        />
-
-        <p style={{ color: "#cbd5e0", fontSize: 12, marginTop: 12 }}>
-          Premi <kbd>Esc</kbd> per confermare/uscire.
-        </p>
+        </div>
+      ))}
+      <div>
+        <button type="button" className="px-2 py-1 rounded border" onClick={add}>
+          Aggiungi pantografo
+        </button>
       </div>
     </div>
   );

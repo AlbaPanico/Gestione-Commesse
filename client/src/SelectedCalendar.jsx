@@ -8,6 +8,8 @@ import autoTable from "jspdf-autotable";
 import BollaFormUscita from "./BollaFormUscita";
 import BollaFormEntrata from "./BollaFormEntrata";
 import { PDFDocument } from "pdf-lib";
+import { generaBollaEntrataCompleta } from "./utils/generaBollaEntrata";
+
 
 function estraiCommessa(nome) {
   if (!nome) return "";
@@ -20,64 +22,27 @@ function oggiStr() {
   return `${pad(oggi.getDate())}-${pad(oggi.getMonth() + 1)}-${oggi.getFullYear()}`;
 }
 
+function calcolaColliDaReport(reportData, quantita) {
+  // 1. Se ci sono consegne con bancali, somma tutti i bancali
+  if (reportData && Array.isArray(reportData.consegne) && reportData.consegne.length > 0) {
+    let somma = 0;
+    for (const consegna of reportData.consegne) {
+      if (Array.isArray(consegna.bancali) && consegna.bancali.length > 0) {
+        somma += consegna.bancali.reduce((tot, b) => tot + (parseInt(b.quantiBancali) || 0), 0);
+      }
+    }
+    if (somma > 0) return somma;
+  }
+  // 2. Se non ci sono bancali, usa la quantità, se presente, altrimenti 1
+  return quantita && Number(quantita) > 0 ? Number(quantita) : 1;
+}
+
+
+
 /* --------- UTILITIES E CONTROLLI PER BOLLE (USCITA + ENTRATA) ----------- */
 
-// Controllo bolla USCITA già generata
-async function checkBollaUscitaGiaGenerata(materialiPath, codiceCommessa) {
-  try {
-    const res = await fetch("http://192.168.1.250:3001/api/lista-file", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ folderPath: materialiPath }),
-    });
-    if (!res.ok) return false;
-    const files = await res.json();
-    const nomi = Array.isArray(files)
-      ? files.map(f => typeof f === "string" ? f : (f.name || f.Nome || ""))
-      : [];
-    return nomi.some(f =>
-      typeof f === "string" &&
-      (
-        f.toLowerCase().startsWith("ddt_") ||
-        f.toLowerCase().startsWith("bolla_")
-      ) &&
-      f.includes(codiceCommessa) &&
-      /[0-9]{4}T_/.test(f) &&
-      !f.toLowerCase().includes("entrata") &&
-      f.toLowerCase().endsWith(".pdf")
-    );
-  } catch {
-    return false;
-  }
-}
 
-// Controllo bolla ENTRATA già generata
-async function checkBollaEntrataGiaGenerata(materialiPath, codiceCommessa) {
-  try {
-    const res = await fetch("http://192.168.1.250:3001/api/lista-file", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ folderPath: materialiPath }),
-    });
-    if (!res.ok) return false;
-    const files = await res.json();
-    const nomi = Array.isArray(files)
-      ? files.map(f => typeof f === "string" ? f : (f.name || f.Nome || ""))
-      : [];
-    return nomi.some(f =>
-      typeof f === "string" &&
-      (
-        f.toLowerCase().startsWith("ddt_") ||
-        f.toLowerCase().startsWith("bolla_")
-      ) &&
-      f.includes(codiceCommessa) &&
-      /[0-9]{4}W_/.test(f) && // Progressivo W (entrata)
-      f.toLowerCase().endsWith(".pdf")
-    );
-  } catch {
-    return false;
-  }
-}
+
 
 /* --------- FUNZIONE GENERA BOLLA USCITA AUTOMATICA con controlli ----------- */
 async function generaBollaUscitaAutomatica(commessa, materiali, materialiPath, destinatarioEmail) {
@@ -96,19 +61,12 @@ async function generaBollaUscitaAutomatica(commessa, materiali, materialiPath, d
     return;
   }
 
-  const codiceCommessa = estraiCommessa(commessa && commessa.nome);
-  const esisteGia = await checkBollaUscitaGiaGenerata(materialiPath, codiceCommessa);
-  if (esisteGia) {
-    alert("⚠️ La bolla di USCITA per questa commessa è già stata generata!\nNon puoi crearne una doppia.");
-    return;
-  }
-
   try {
-    let numeroBolla = "W";
+    let numeroBolla = "T";
     try {
       const res = await fetch("http://192.168.1.250:3001/api/prossima-bolla", { method: "GET" });
       const data = await res.json();
-      if (data && data.numeroBolla) numeroBolla = `${data.numeroBolla}W`;
+      if (data && data.numeroBolla) numeroBolla = `${data.numeroBolla}T`;
     } catch {}
 
     let masterPDFBuffer = null;
@@ -121,46 +79,79 @@ async function generaBollaUscitaAutomatica(commessa, materiali, materialiPath, d
       return;
     }
 
-    const pdfDoc = await PDFDocument.load(masterPDFBuffer);
-    const form = pdfDoc.getForm();
-    const fields = form.getFields().map(f => f.getName());
-
-    const nomeCommessa = commessa.nome || "";
-    const soloCommessa = estraiCommessa(nomeCommessa);
-
-    fields.forEach(f => {
-      const lname = f.toLowerCase();
-      if (lname.includes("numero documento")) form.getTextField(f).setText(numeroBolla);
-      else if (lname.includes("data documento")) form.getTextField(f).setText(oggiStr());
-      else if (lname.includes("commessa")) form.getTextField(f).setText(soloCommessa);
-      else if (lname.includes("data trasporto")) form.getTextField(f).setText(oggiStr());
-      else if (lname.includes("data ritiro")) form.getTextField(f).setText(oggiStr());
-    });
-
     const chunkSize = 18;
-    const chunk = materiali.slice(0, chunkSize);
-
-    chunk.forEach((mat, idx) => {
-      try { form.getTextField(`codice.${idx}`).setText(mat.Cd_AR || ""); } catch {}
-      try { form.getTextField(`descrizione.${idx}`).setText(mat.Descrizione || ""); } catch {}
-      try {
-        let qtaVal = mat.Qta != null ? String(Math.floor(Number(mat.Qta))) : "";
-        form.getTextField(`qta.${idx}`).setText(qtaVal);
-      } catch {}
-    });
-    for (let j = chunk.length; j < chunkSize; j++) {
-      try { form.getTextField(`codice.${j}`).setText(""); } catch {}
-      try { form.getTextField(`descrizione.${j}`).setText(""); } catch {}
-      try { form.getTextField(`qta.${j}`).setText(""); } catch {}
+    const chunks = [];
+    for (let i = 0; i < materiali.length; i += chunkSize) {
+      chunks.push(materiali.slice(i, i + chunkSize));
     }
-    try { form.getTextField("colli").setText(String(chunk.length)); } catch {}
-    form.flatten();
+    if (chunks.length === 0) chunks.push([]);
 
-    const pdfBytes = await pdfDoc.save();
-    const blob = new Blob([pdfBytes], { type: "application/pdf" });
     const commessaStr = estraiCommessa(commessa && commessa.nome);
-    const nomeFile = `DDT_${numeroBolla.replace('W', 'T')}_${commessaStr}_${oggiStr()}.pdf`;
+    const dataFile = oggiStr();
 
+    const finalPdfDoc = await PDFDocument.create();
+
+    // Serve il nome del campo PAG per la paginazione!
+    let fieldsList = [];
+    try {
+      const pdfDocTmp = await PDFDocument.load(masterPDFBuffer);
+      const formTmp = pdfDocTmp.getForm();
+      fieldsList = formTmp.getFields().map(f => ({ name: f.getName(), type: f.constructor.name }));
+    } catch {}
+
+    for (let pageIdx = 0; pageIdx < chunks.length; pageIdx++) {
+      const pdfDoc = await PDFDocument.load(masterPDFBuffer);
+      const form = pdfDoc.getForm();
+      const pdfFieldList = fieldsList;
+
+      // Setta i campi "statici"
+      pdfFieldList.forEach(f => {
+        const lname = f.name.toLowerCase();
+        if (lname.includes("numero documento")) form.getTextField(f.name).setText(numeroBolla);
+        else if (lname.includes("data documento")) form.getTextField(f.name).setText(oggiStr());
+        else if (lname.includes("commessa")) form.getTextField(f.name).setText(commessaStr);
+        else if (lname.includes("data trasporto")) form.getTextField(f.name).setText(oggiStr());
+        else if (lname.includes("data ritiro")) form.getTextField(f.name).setText(oggiStr());
+      });
+
+      // Materiali sulle righe
+      chunks[pageIdx].forEach((mat, idx) => {
+        try { form.getTextField(`codice.${idx}`).setText(mat.Cd_AR || ""); } catch {}
+        try { form.getTextField(`descrizione.${idx}`).setText(mat.Descrizione || ""); } catch {}
+        try {
+          let qtaVal = mat.Qta != null ? String(Math.floor(Number(mat.Qta))) : "";
+          form.getTextField(`qta.${idx}`).setText(qtaVal);
+        } catch {}
+      });
+      for (let j = chunks[pageIdx].length; j < chunkSize; j++) {
+        try { form.getTextField(`codice.${j}`).setText(""); } catch {}
+        try { form.getTextField(`descrizione.${j}`).setText(""); } catch {}
+        try { form.getTextField(`qta.${j}`).setText(""); } catch {}
+      }
+
+      // Colli
+      try {
+        form.getTextField("colli").setText(String(materiali.length));
+      } catch {}
+
+      // Numero pagina!
+      const pagField = pdfFieldList.find(f => f.name.toLowerCase().includes("pag"));
+      if (pagField) {
+        try {
+          form.getTextField(pagField.name).setText(`${pageIdx + 1}/${chunks.length}`);
+        } catch {}
+      }
+
+      form.flatten();
+      const [page] = await finalPdfDoc.copyPages(pdfDoc, [0]);
+      finalPdfDoc.addPage(page);
+    }
+
+    const nomeFile = `DDT_${numeroBolla}_${commessaStr}_${dataFile}.pdf`;
+    const pdfBytes = await finalPdfDoc.save();
+    const blob = new Blob([pdfBytes], { type: "application/pdf" });
+
+    // Download locale
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -169,6 +160,7 @@ async function generaBollaUscitaAutomatica(commessa, materiali, materialiPath, d
     a.click();
     setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 500);
 
+    // Salva in MATERIALI
     await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = async () => {
@@ -191,88 +183,6 @@ async function generaBollaUscitaAutomatica(commessa, materiali, materialiPath, d
   }
 }
 
-/* --------- FUNZIONE GENERA BOLLA ENTRATA AUTOMATICA con controlli ----------- */
-async function generaBollaEntrataAutomatica(commessa, materialiPath) {
-
-  if (!commessa || !materialiPath) return;
-
-  const codiceCommessa = estraiCommessa(commessa && commessa.nome);
-  const esisteGia = await checkBollaEntrataGiaGenerata(materialiPath, codiceCommessa);
-  if (esisteGia) {
-    alert("⚠️ La bolla di ENTRATA per questa commessa è già stata generata!\nNon puoi crearne una doppia.");
-    return;
-  }
-
-  try {
-    let numeroBolla = "W";
-    try {
-      const res = await fetch("http://192.168.1.250:3001/api/prossima-bolla-entrata", { method: "POST" });
-      const data = await res.json();
-      if (data && data.numeroBolla) numeroBolla = `${data.numeroBolla}W`;
-    } catch {}
-
-    let masterPDFBuffer = null;
-    try {
-      const res = await fetch("http://192.168.1.250:3001/api/master-bolla?tipo=entrata");
-      if (!res.ok) throw new Error("Master PDF di Entrata non trovato!");
-      masterPDFBuffer = await res.arrayBuffer();
-    } catch (e) {
-      alert("Errore: master PDF bolla ENTRATA non trovato!");
-      return;
-    }
-
-    const pdfDoc = await PDFDocument.load(masterPDFBuffer);
-    const form = pdfDoc.getForm();
-    const fields = form.getFields().map(f => f.getName());
-
-    const nomeCommessa = commessa.nome || "";
-
-    fields.forEach(f => {
-      const lname = f.toLowerCase();
-      if (lname.includes("numero documento")) form.getTextField(f).setText(numeroBolla);
-      else if (lname.includes("data documento")) form.getTextField(f).setText(oggiStr());
-      else if (lname.includes("descrizione")) form.getTextField(f).setText("Assembraggio " + nomeCommessa);
-      else if (lname.includes("qta")) form.getTextField(f).setText(commessa.quantita ? String(commessa.quantita) : "");
-      else if (f === "Testo8" || f === "Testo9") form.getTextField(f).setText(oggiStr());
-    });
-
-    form.flatten();
-
-    const pdfBytes = await pdfDoc.save();
-    const blob = new Blob([pdfBytes], { type: "application/pdf" });
-    const commessaStr = estraiCommessa(commessa && commessa.nome);
-    const nomeFile = `DDT_${numeroBolla}_${commessaStr}_${oggiStr()}.pdf`;
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = nomeFile;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 500);
-
-    await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const pdfData = reader.result;
-        try {
-          await fetch("http://192.168.1.250:3001/api/save-pdf-report", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ folderPath: materialiPath, pdfData, fileName: nomeFile }),
-          });
-          resolve();
-        } catch (e) { reject(e); }
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-
-  } catch (e) {
-    alert("Errore nella generazione o invio della bolla di ENTRATA: " + (e?.message || e));
-    console.error(e);
-  }
-}
 
 
 
@@ -345,7 +255,8 @@ export default function SelectedCalendar({
   folderPath,
   quantita,
   archiviata,
-  masterBolleEntrata   // <--- AGGIUNTA QUI!
+  masterBolleEntrata,   
+reportDdtPath 
 }) {
   const nodeRef = useRef(null);
   const calendarContainerRef = useRef(null);
@@ -452,21 +363,21 @@ async function salvaExcelNelBackend({ folderPath, fileName, excelBlob }) {
 }
 
 
-const handleExportExcel = async () => {
+const handleExportExcel = async (materials = materialiTab) => {
   const commessaNome = nomeCommessa ? nomeCommessa : "";
   const commessaHeader = [[`Commessa: ${commessaNome}`], []];
 
   const headers = [
     "Cliente/Fornitore",
     "Articolo",
-    "Qta",           // Adesso Qta PRIMA di Descrizione
+    "Qta",
     "Descrizione",
     "Note",
     "Prezzo Unit.",
     "Data Consegna"
   ];
 
-  const dataToExport = materialiTab.map(row => [
+  const dataToExport = (materials || []).map(row => [
     row.ClienteFornitore,
     row.Cd_AR,
     Number(row.Qta).toFixed(2),
@@ -492,7 +403,7 @@ const handleExportExcel = async () => {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Distinta Materiali");
 
-  // --- 1. Download locale ---
+  // Download per browser
   const excelBuffer = XLSX.write(workbook, { type: "array", bookType: "xlsx" });
   const excelBlob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   const fileName = `DistintaMateriali_${commessaNome}.xlsx`;
@@ -507,8 +418,6 @@ const handleExportExcel = async () => {
   setTimeout(() => { a.remove(); window.URL.revokeObjectURL(url); }, 500);
 
   // --- 2. Salvataggio nella cartella MATERIALI del server ---
-  // NB: Il folderPath che passi qui DEVE essere la cartella /MATERIALI della commessa!
-  // Se folderPath è quello della commessa, aggiungi /MATERIALI.
   let materialiPath = folderPath;
   if (materialiPath && !materialiPath.endsWith("/MATERIALI")) {
     materialiPath = materialiPath + "/MATERIALI";
@@ -519,7 +428,7 @@ const handleExportExcel = async () => {
       fileName,
       excelBlob,
     });
-    // Facoltativo: puoi fare alert("Excel salvato anche sul server!") se vuoi feedback
+    // alert("Excel salvato anche sul server!") // opzionale
   } catch (e) {
     alert("⚠️ Non sono riuscito a salvare l’Excel sul server nella cartella MATERIALI.");
   }
@@ -623,6 +532,7 @@ const handleExportBollaUscita = async () => {
   const [deliveryTrasportatore, setDeliveryTrasportatore] = useState('');
   const [deliveryNddt, setDeliveryNddt] = useState('');
   const [deliveryEditIndex, setDeliveryEditIndex] = useState(null);
+const [prezzoVendita, setPrezzoVendita] = useState('');
 
   // Stati per la modale slide di Bancali
   const [showBancaleModal, setShowBancaleModal] = useState(false);
@@ -819,6 +729,10 @@ const handleExportBollaUscita = async () => {
             }
             setReportData(data.report);
           }
+if (data.report.prezzoVendita !== undefined && data.report.prezzoVendita !== null) {
+  setPrezzoVendita(String(data.report.prezzoVendita));
+}
+
         })
         .catch((err) => console.error("Errore nel caricamento del report.json:", err));
     }
@@ -880,6 +794,7 @@ const handleExportBollaUscita = async () => {
       fineProduzioneEffettiva: finalize && newEndDate ? localISODate(newEndDate) : reportData ? reportData.fineProduzioneEffettiva : null,
       dettagliProduzione: productionDetailsData ? productionDetailsData : reportData ? reportData.dettagliProduzione : [],
       consegne: deliveries,
+  prezzoVendita: prezzoVendita,
     };
     fetch(`http://192.168.1.250:3001/api/report`, {
       method: 'POST',
@@ -893,6 +808,29 @@ const handleExportBollaUscita = async () => {
       })
       .catch((err) => console.error("Errore nell'aggiornamento del report.json:", err));
   };
+
+const savePrezzoVendita = async () => {
+  if (!folderPath) return;
+  const value = (prezzoVendita ?? "").toString().replace(",", ".");
+  const reportAggiornato = {
+    ...((reportData && typeof reportData === 'object') ? reportData : {}),
+    prezzoVendita: value === "" ? "" : Number(value),
+  };
+  try {
+    await fetch(`http://192.168.1.250:3001/api/report`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folderPath, reportData: reportAggiornato }),
+    });
+    setReportData(reportAggiornato);
+    setPrezzoVendita(value); // riflette la normalizzazione
+    alert("Prezzo vendita salvato!");
+  } catch (err) {
+    console.error("Errore salvataggio prezzoVendita:", err);
+    alert("Errore nel salvataggio del prezzo vendita");
+  }
+};
+
 
   const resetWorkingDays = () => {
     if (window.confirm("Sei sicuro di voler cancellare la lavorazione?")) {
@@ -925,37 +863,72 @@ const handleExportBollaUscita = async () => {
     }
   };
 
-  const handleWorkingDaysSave = () => {
+  const handleWorkingDaysSave = async () => {
   const parsed = parseInt(tempWorkingDays, 10);
   if (isNaN(parsed) || parsed <= 0) {
     setWorkingDays(0);
     setTempWorkingDays('');
     updateReport(0, selectedDate);
-  } else {
-    setWorkingDays(parsed);
-    if (selectedDate) {
-      setFrozenStartDate(selectedDate);
-      const inizioProduzione = localISODate(new Date(selectedDate));
-      updateReport(parsed, inizioProduzione);
-      sendMailEvento('inizio', {
-        data: formatDateDMY(selectedDate),
-        giorniPrevisti: parsed
-      });
+    setShowWorkingDaysModal(false);
+    return;
+  }
+
+  setWorkingDays(parsed);
+  if (selectedDate) {
+    setFrozenStartDate(selectedDate);
+    const inizioProduzione = localISODate(new Date(selectedDate));
+    updateReport(parsed, inizioProduzione);
+    sendMailEvento('inizio', {
+      data: formatDateDMY(selectedDate),
+      giorniPrevisti: parsed
+    });
+  }
+
+  // === PATCH SOTTOCOMMESSA FILTRO SICURO ===
+  let sottocommessaDefault = "";
+  if (nomeCommessa) {
+    const match = nomeCommessa.match(/C([A-Za-z0-9]+)$/i);
+    if (match && match[1]) {
+      sottocommessaDefault = match[1];
+    } else {
+      const match2 = nomeCommessa.match(/(\d+)$/);
+      sottocommessaDefault = match2 ? match2[1] : nomeCommessa;
     }
   }
-  setShowWorkingDaysModal(false);
-  handleExportExcel(); // <-- Esporta Excel
+  const filtroSottocommessaReal = sottocommessaDefault || filtroSottocommessa || nomeCommessa;
+  const filtroTipoCFReal = filtroTipoCF || "fornitore";
+  const filtroQtaMaggioreZeroReal = filtroQtaMaggioreZero !== undefined ? filtroQtaMaggioreZero : true;
 
-  // === GENERA LA BOLLA AUTOMATICAMENTE ===
+  const params = new URLSearchParams();
+  if (filtroSottocommessaReal) params.append('sottocommessa', filtroSottocommessaReal);
+  if (filtroTipoCFReal) params.append('tipo_cf', filtroTipoCFReal);
+  if (filtroQtaMaggioreZeroReal) params.append('qta_gt_0', '1');
+  let materials = [];
+  try {
+    const res = await fetch(`http://192.168.1.250:5050/api/materiali?${params.toString()}`);
+    if (res.ok) {
+      materials = await res.json();
+    }
+  } catch { /* fallback materials resta [] */ }
+
+  await handleExportExcel(materials);
+
   let materialiPath = folderPath;
   if (materialiPath && !materialiPath.endsWith("/MATERIALI")) {
     materialiPath = materialiPath + "/MATERIALI";
   }
-  generaBollaUscitaAutomatica(commessaMemo, materialiTab, materialiPath, emailDestinatariLavorazione);
-
+  await generaBollaUscitaAutomatica(commessaMemo, materials, materialiPath, emailDestinatariLavorazione);
 
   alert("Distinta materiali e bolla di uscita generate!");
+  setShowWorkingDaysModal(false);
 };
+
+
+
+
+
+
+
 
 
 
@@ -1041,55 +1014,112 @@ const handleExportBollaUscita = async () => {
   );
 
   const handleCloseCommessa = async () => {
-    if (!window.confirm("Sei sicuro di voler archiviare la commessa?")) return;
-    if (window.confirm("Vuoi generare il report PDF?")) {
-      handleGeneratePDFReport();
+  if (!window.confirm("Sei sicuro di voler archiviare la commessa?")) return;
+  if (window.confirm("Vuoi generare il report PDF?")) {
+    handleGeneratePDFReport();
+  }
+  try {
+    await fetch('http://192.168.1.250:3001/api/report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        folderPath: folderPath,
+        reportData: { archiviata: true },
+      }),
+    });
+    updateReport(
+      workingDays,
+      reportData?.inizioProduzione,
+      reportData?.fineProduzionePrevista,
+      reportData?.totGiorniLavorazioneEffettivi,
+      finalized,
+      productionDetails,
+      true
+    );
+    alert("Commessa archiviata!");
+    setIsArchived(true);
+    setReportData((prev) => ({ ...(prev || {}), archiviata: true }));
+    {
+      const emailBody = buildEmailBody();
+      window.location.href =
+        `mailto:?subject=Report Commessa ${nomeCommessa}&body=${emailBody}`;
     }
-    try {
-      await fetch('http://192.168.1.250:3001/api/report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          folderPath: folderPath,
-          reportData: { archiviata: true },
-        }),
-      });
-      updateReport(
-        workingDays,
-        reportData?.inizioProduzione,
-        reportData?.fineProduzionePrevista,
-        reportData?.totGiorniLavorazioneEffettivi,
-        finalized,
-        productionDetails,
-        true
-      );
-      alert("Commessa archiviata!");
-      setIsArchived(true);
-      setReportData((prev) => ({ ...(prev || {}), archiviata: true }));
-      {
-        const emailBody = buildEmailBody();
-        window.location.href =
-          `mailto:?subject=Report Commessa ${nomeCommessa}&body=${emailBody}`;
-      }
-setReportData((prev) => ({ ...(prev || {}), archiviata: true }));
+    setReportData((prev) => ({ ...(prev || {}), archiviata: true }));
     {
       const emailBody = buildEmailBody();
       window.location.href =
         `mailto:?subject=Report Commessa ${nomeCommessa}&body=${emailBody}`;
     }
 
-    // === GENERAZIONE AUTOMATICA BOLLA ENTRATA ===
     let materialiPath = folderPath;
-    if (materialiPath && !materialiPath.endsWith("/MATERIALI")) {
-      materialiPath = materialiPath + "/MATERIALI";
+if (materialiPath && !materialiPath.endsWith("/MATERIALI")) {
+  materialiPath = materialiPath + "/MATERIALI";
+}
+await generaBollaEntrataCompleta({
+  commessa: commessaMemo,
+  materialiPath,
+  reportDdtPath,
+});
+
+// Dopo la generazione bolla, aggiorna l’Excel DDT!
+if (reportDdtPath && materialiPath && commessaMemo) {
+  // Estrai codice commessa
+  let codiceCommessa = "";
+  if (commessaMemo.codiceCommessa) {
+    codiceCommessa = String(commessaMemo.codiceCommessa).replace(/[^a-zA-Z0-9]/g, "");
+  } else if (commessaMemo.nome) {
+    const match = commessaMemo.nome.match(/_C([a-zA-Z0-9]+)$/);
+    codiceCommessa = match ? "C" + match[1] : commessaMemo.nome;
+  }
+
+  // Calcola Colli (come sopra)
+  let colli = 0;
+  if (reportData && Array.isArray(reportData.consegne) && reportData.consegne.length > 0) {
+    for (const consegna of reportData.consegne) {
+      if (Array.isArray(consegna.bancali) && consegna.bancali.length > 0) {
+        colli += consegna.bancali.reduce((tot, b) => tot + (parseInt(b.quantiBancali) || 0), 0);
+      }
     }
-    await generaBollaEntrataAutomatica(commessaMemo, materialiPath);
-      onClose();
-    } catch (error) {
-      console.error("Errore durante l'archiviazione:", error);
-      alert("Errore di connessione al server.");
-    }
-  };
+  }
+  if (colli === 0) colli = commessaMemo.quantita ? parseInt(commessaMemo.quantita) : 1;
+
+  // Calcola Ore Lavorazione
+  let oreLavorazione = 0;
+  if (Array.isArray(productionDetails)) {
+    oreLavorazione = productionDetails.reduce((acc, d) => acc + (parseFloat(d.totaleOreGG) || 0), 0);
+  }
+
+  const datiDdt = {
+  codiceCommessa,
+  quantita: commessaMemo.quantita || "",
+  folderPath: commessaMemo.folderPath || "",
+  colli: colli,
+  oreLavorazione: oreLavorazione,
+  nomeCommessa: commessaMemo.nome || "",
+  prezzoVendita: (prezzoVendita ?? "").toString() // <<< PASSIAMO IL PREZZO MANUALE
+};
+
+
+
+  await fetch("http://192.168.1.250:3001/api/genera-ddt-excel", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      reportDdtPath: reportDdtPath,
+      datiDdt: datiDdt
+    })
+  });
+}
+
+
+
+    onClose();
+  } catch (error) {
+    console.error("Errore durante l'archiviazione:", error);
+    alert("Errore di connessione al server.");
+  }
+};
+
 
   const buildEmailBody = (skipDetails = false) => {
   let body = `Report Produzione:\n\n`;
@@ -1695,13 +1725,39 @@ setReportData((prev) => ({ ...(prev || {}), archiviata: true }));
           )}
         </div>
         <div className="border-2 border-custom shadow-3d rounded-lg p-4 flex flex-col justify-start items-start h-full">
-          <div className="w-full flex justify-between items-start mb-4">
-            <h3 className="text-lg font-bold text-white">Report Consegne</h3>
-            <div className="text-right">
-              <p className="text-lg font-bold text-white">Pezzi a saldo: {saldo}</p>
-              <p className="text-lg font-bold text-white">Pezzi consegnati: {totPezziConsegna}</p>
-            </div>
-          </div>
+          <div className="w-full flex flex-wrap items-end justify-between gap-4 mb-4">
+  <h3 className="text-lg font-bold text-white">Report Consegne</h3>
+
+  <div className="flex items-end gap-3">
+    <div className="text-right mr-6">
+      <p className="text-lg font-bold text-white">Pezzi a saldo: {saldo}</p>
+      <p className="text-lg font-bold text-white">Pezzi consegnati: {totPezziConsegna}</p>
+    </div>
+
+    <div>
+      <label className="block text-sm font-medium text-gray-700">Prezzo vendita (€/pz)</label>
+      <input
+        type="number"
+        step="0.0001"
+        value={prezzoVendita}
+        onChange={(e) => setPrezzoVendita(e.target.value)}
+        className="border rounded px-2 py-1"
+        placeholder="es. 1.2345"
+        style={{ minWidth: 160 }}
+      />
+    </div>
+    <button
+      type="button"
+      onClick={savePrezzoVendita}
+      className="px-3 py-1 bg-blue-600 text-white rounded hover:scale-105 transition"
+      title="Salva prezzo vendita su report.json"
+    >
+      Salva
+    </button>
+  </div>
+</div>
+
+
           {selectedDate && (
             <button
               onClick={handleInsertDeliveryClick}
@@ -2387,6 +2443,7 @@ setReportData((prev) => ({ ...(prev || {}), archiviata: true }));
     <BollaFormEntrata
       commessa={commessaMemo}
       onClose={() => setShowBollaFormEntrata(false)}
+reportDdtPath={reportDdtPath} 
     />
   </div>
 )}
@@ -2394,5 +2451,6 @@ setReportData((prev) => ({ ...(prev || {}), archiviata: true }));
 </div>
   );
 }
+
 
 
