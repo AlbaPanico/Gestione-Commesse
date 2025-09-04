@@ -448,7 +448,8 @@ const commessaStr = codiceVisivo;                   // uniformiamo al formato T
     const commessaStr = getCodiceVisivo(commessa);      // es: "C8888-11"
 
     if (materialiPath) {
-      const esisteGia = await checkBollaEntrataGiaGenerata(materialiPath, segmentoFile, codiceVisivo);
+      const esisteGia = await checkBollaEntrataGiaGenerata(materialiPath, commessaStr, commessaStr);
+
       if (esisteGia) {
         alert(
           "⚠️ Attenzione: la bolla di ENTRATA per questa commessa è già stata generata!\nNon puoi crearne una doppia."
@@ -546,7 +547,8 @@ const commessaStr = codiceVisivo;                   // uniformiamo al formato T
         reportDdtPath: reportDdtPath,
         dataDdt: oggiStr().replace(/-/g, "/"),
         numeroDdt: nuovoNumeroPuro + "W",
-        codiceCommessa: codiceVisivo, // ✅ Excel col. C corretto
+        codiceCommessa: commessaStr,  // ✅ Excel col. C corretto
+
         quantita: quantita,
         colli: formValues["colli"] || "",
         nsDdt: formValues["Ns DDT"] || "",
