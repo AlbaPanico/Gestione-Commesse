@@ -319,28 +319,52 @@ app.get('/api/prossima-bolla', (req, res) => {
 app.post('/api/avanza-bolla', (req, res) => {
   try { syncProgressivi({ forT: true, forW: false }); } catch {}
 
-  let bolle = getBolleUscita();
-  const oggi = oggiISO();
-  if (bolle.ultimaData !== oggi) { bolle = { progressivo: 1, ultimaData: oggi }; }
-  const progressivo = bolle.progressivo;
-  saveBolleUscita(progressivo + 1, oggi);
+  const lockPath = path.join(__dirname, 'data', 'bolle_in_uscita.lock');
+  let lockFd = null;
 
-  // Nome file: DDT_<NNNNT>_<Cxxxx[-yy]>_<dd-mm-yyyy>.pdf
-  const folderPath = req.body?.folderPath || '';
-  let codiceVisivoRaw = folderPath ? getCodiceCommessaVisuale(folderPath) : '';
-let codiceVisivo = normalizeCodiceVisivo(codiceVisivoRaw);
+  try {
+    // Acquisisci lock atomico per evitare doppi avanzamenti concorrenti
+    lockFd = fs.openSync(lockPath, 'wx');
 
-  const suffissoC = codiceVisivo ? `_${codiceVisivo}` : '';
-  const nomeFileSuggerito = `DDT_${String(progressivo).padStart(4,'0')}T${suffissoC}_${oggiStr()}.pdf`;
+    let bolle = getBolleUscita();
+    const oggi = oggiISO();
+    if (bolle.ultimaData !== oggi) { bolle = { progressivo: 1, ultimaData: oggi }; }
+    const progressivo = bolle.progressivo;
+    saveBolleUscita(progressivo + 1, oggi);
 
-  const logLine = `[${new Date().toISOString()}] BOLLA generata - Numero: ${String(progressivo).padStart(4, '0')}T, Data: ${oggi}\n`;
-  fs.appendFileSync(path.join(__dirname, 'data', 'bolle.log'), logLine);
+    // Nome file: DDT_<NNNNT>_<Cxxxx[-yy]>_<dd-mm-yyyy>.pdf
+    const folderPath = req.body?.folderPath || '';
+    let codiceVisivoRaw = folderPath ? getCodiceCommessaVisuale(folderPath) : '';
+    let codiceVisivo = normalizeCodiceVisivo(codiceVisivoRaw);
 
-  res.json({
-    numeroBolla: String(progressivo).padStart(4, '0'),
-    dataTrasporto: oggi,
-    suggestedFileName: nomeFileSuggerito
-  });
+    const suffissoC = codiceVisivo ? `_${codiceVisivo}` : '';
+    const nomeFileSuggerito = `DDT_${String(progressivo).padStart(4,'0')}T${suffissoC}_${oggiStr()}.pdf`;
+
+    const logLine = `[${new Date().toISOString()}] BOLLA generata - Numero: ${String(progressivo).padStart(4, '0')}T, Data: ${oggi}\n`;
+    fs.appendFileSync(path.join(__dirname, 'data', 'bolle.log'), logLine);
+
+    const payload = {
+      numeroBolla: String(progressivo).padStart(4, '0'),
+      dataTrasporto: oggi,
+      suggestedFileName: nomeFileSuggerito
+    };
+
+    // Rilascia lock
+    try { fs.closeSync(lockFd); } catch {}
+    try { fs.unlinkSync(lockPath); } catch {}
+
+    return res.json(payload);
+  } catch (err) {
+    if (err && err.code === 'EEXIST') {
+      // Un altro avanzamento è in corso proprio ora
+      return res.status(423).json({ message: 'Progressivo in aggiornamento, riprova tra pochi istanti.' });
+    }
+    return res.status(500).json({ message: 'Errore avanzando progressivo bolla uscita.', error: String(err) });
+  } finally {
+    // Safety cleanup in caso di eccezioni
+    try { if (lockFd !== null) fs.closeSync(lockFd); } catch {}
+    try { if (fs.existsSync(lockPath)) fs.unlinkSync(lockPath); } catch {}
+  }
 });
 
 
@@ -352,10 +376,34 @@ app.get('/api/prossima-bolla-entrata', (req, res) => {
 
 // Entrata: AVANZA (senza prefisso)
 app.post('/api/avanza-bolla-entrata', (req, res) => {
-  const bolle = getBolleEntrata();
-  const progressivo = bolle.progressivo;
-  saveBolleEntrata(progressivo + 1);
-  res.json({ numeroBolla: String(progressivo).padStart(4, '0') });
+  const lockPath = path.join(__dirname, 'data', 'bolle_in_entrata.lock');
+  let lockFd = null;
+  try {
+    // Acquisisci lock atomico: fallisce se già presente
+    lockFd = fs.openSync(lockPath, 'wx');
+
+    const bolle = getBolleEntrata();
+    const progressivo = bolle.progressivo;
+    saveBolleEntrata(progressivo + 1);
+
+    const payload = { numeroBolla: String(progressivo).padStart(4, '0') };
+
+    // Rilascia lock
+    try { fs.closeSync(lockFd); } catch {}
+    try { fs.unlinkSync(lockPath); } catch {}
+
+    return res.json(payload);
+  } catch (err) {
+    // Se un'altra richiesta sta avanzando in questo istante
+    if (err && err.code === 'EEXIST') {
+      return res.status(423).json({ message: 'Progressivo in aggiornamento, riprova tra pochi istanti.' });
+    }
+    return res.status(500).json({ message: 'Errore avanzando progressivo bolla entrata.', error: String(err) });
+  } finally {
+    // Safety: in caso di eccezioni intermedie
+    try { if (lockFd !== null) fs.closeSync(lockFd); } catch {}
+    try { if (fs.existsSync(lockPath)) fs.unlinkSync(lockPath); } catch {}
+  }
 });
 
 // --- SYNC progressivi dai PDF esistenti (T = solo oggi, W = globale) ----------
@@ -779,12 +827,31 @@ app.post('/api/genera-bolla-entrata', async (req, res) => {
 
 
 
-//SSe
-
-
 // ───────────────────────────────────────────────────────────────────────────────
 // Gestione commesse
 // ───────────────────────────────────────────────────────────────────────────────
+
+// Anti-doppio trigger per la generazione automatica della W
+const AUTO_W_DEBOUNCE_MS = 15000; // 15s: regola a piacere
+const autoWRecent = new Map();    // key = folderPath normalizzato -> timestamp ultimo trigger
+
+function shouldTriggerAutoW(folderPath) {
+  try {
+    const key = path.resolve(String(folderPath || ''));
+    const now = Date.now();
+    const last = autoWRecent.get(key) || 0;
+    if (now - last < AUTO_W_DEBOUNCE_MS) {
+      console.log('[auto-bolla-entrata] debounce: trigger ravvicinato ignorato per', key);
+      return false;
+    }
+    autoWRecent.set(key, now);
+    return true;
+  } catch (e) {
+    // in caso di problemi imprevisti, meglio non bloccare il flusso
+    return true;
+  }
+}
+
 let ultimoHashCommesse = null;
 let percorsoCartellaMonitorata = null;
 let monitorInterval = null;
@@ -1070,20 +1137,24 @@ app.post('/api/report', (req, res) => {
     refreshCommesseJSON(parentFolder);
     notifyClients();
 
-    // ── Trigger: se archiviata passa da false -> true, genera la W automaticamente
+    // ── Trigger: se archiviata passa da false -> true, genera la W automaticamente (con debounce)
     try {
       const prima = existing?.archiviata === true || existing?.archiviata === 'true';
       const dopo  = merged?.archiviata === true   || merged?.archiviata === 'true';
 
       if (!prima && dopo) {
-        setTimeout(async () => {
-          const r = await creaBollaEntrataConExcel(folderPath, true, { source: 'auto' });
-          if (!r?.ok) {
-            console.warn('[auto-bolla-entrata] errore:', r?.error || r?.msg);
-            return;
-          }
-          console.log('[auto-bolla-entrata] creata:', r.fileName);
-        }, 0);
+        if (shouldTriggerAutoW(folderPath)) {
+          setTimeout(async () => {
+            const r = await creaBollaEntrataConExcel(folderPath, true, { source: 'auto' });
+            if (!r?.ok) {
+              console.warn('[auto-bolla-entrata] errore:', r?.error || r?.msg);
+              return;
+            }
+            console.log('[auto-bolla-entrata] creata:', r.fileName);
+          }, 0);
+        } else {
+          console.log('[auto-bolla-entrata] debounce: generazione auto W già in corso o appena eseguita per', folderPath);
+        }
       }
     } catch (e) {
       console.warn('[auto-bolla-entrata] warning:', e?.message || String(e));
