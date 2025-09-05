@@ -325,10 +325,39 @@ def main():
                "LUGLIO", "AGOSTO", "SETTEMBRE", "OTTOBRE", "NOVEMBRE", "DICEMBRE"]
     ws["A1"] = f"DDT Work Report {mesi_it[int(mese)]} {anno}"
 
-    # Prima riga libera
-    row = 5
-    while ws[f"A{row}"].value:
-        row += 1
+       # Dedup: se esiste già una riga con lo stesso Numero DDT ENTRATA (col. B)
+    # oppure lo stesso hyperlink del PDF (col. I), sovrascrivo quella riga
+    existing_row = None
+    try:
+        maxr = ws.max_row or 5
+        for r in range(5, maxr + 1):
+            # match su Numero DDT (es. "0078W")
+            valB = ws[f"B{r}"].value
+            if valB and str(valB).strip() == str(numero_ddt_entrata).strip():
+                existing_row = r
+                break
+            # match su hyperlink (target) in colonna I
+            try:
+                hl = ws[f"I{r}"].hyperlink
+                target = getattr(hl, "target", None) if hl else None
+                if target and os.path.normcase(target) == os.path.normcase(link_pdf_entrata):
+                    existing_row = r
+                    break
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    if existing_row:
+        row = existing_row
+        log(f"DEBUG dedupe: sovrascrivo riga esistente {row} per DDT {numero_ddt_entrata}")
+    else:
+        # Prima riga libera
+        row = 5
+        while ws[f"A{row}"].value:
+            row += 1
+        log(f"DEBUG dedupe: nessuna riga esistente, scrivo in nuova riga {row}")
+
 
     # Nome visivo
     valore_nome = nome_commessa if nome_commessa else "(NO NOME)"
