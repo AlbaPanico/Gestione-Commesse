@@ -959,3 +959,35 @@
 [2025-09-05 13:34:45] DEBUG dedupe: sovrascrivo riga esistente 8 per DDT 0081W
 [2025-09-05 13:34:45] DEBUG prezzoVendita ricevuto='' -> usato=0.0
 [2025-09-05 13:34:45] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 8) | NomeCommessa='REGLETTE A “L” EVENTO SKIN P10-P12 2025 [24 CM5 PZ]' | Codice='C4959' | PrezzoVendita=0.0 | PDF_IN='DDT_0081W_C4959_05-09-2025.pdf'
+[2025-09-05 13:38:01] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita']
+[2025-09-05 13:38:01] DEBUG nomeCommessa='OAP_reglette a L skin_P_C4985' descrizione='Assembraggio OAP_reglette a L skin_P_C4985'
+[2025-09-05 13:38:01] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita', 'reportDdtPath']
+[2025-09-05 13:38:01] DEBUG nomeCommessa='OAP_reglette a L skin_P_C4985' descrizione='Assembraggio OAP_reglette a L skin_P_C4985'
+[2025-09-05 13:38:01] DEBUG estrazione: sorgente='Assembraggio OAP_reglette a L skin_P_C4985' -> estratto='reglette a L skin'
+[2025-09-05 13:38:01] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\OAP_reglette a L skin_P_C4985\MATERIALI' esiste=True
+[2025-09-05 13:38:01] DEBUG codice_commessa_norm='C4985' (raw='C4985')
+[2025-09-05 13:38:01] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\OAP_reglette a L skin_P_C4985\MATERIALI' esiste=True
+[2025-09-05 13:38:01] DEBUG codice_commessa_norm='C4985' (raw='C4985')
+[2025-09-05 13:38:01] DEBUG MATERIALI contiene (2 file): DDT_0082W_C4985_05-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-05 13:38:01] DEBUG match regex ENTRATA: DDT_0082W_C4985_05-09-2025.pdf
+[2025-09-05 13:38:01] DEBUG MATERIALI contiene (2 file): DDT_0082W_C4985_05-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-05 13:38:01] DEBUG match regex ENTRATA: DDT_0082W_C4985_05-09-2025.pdf
+[2025-09-05 13:38:01] DEBUG MATERIALI contiene (2 file): DDT_0082W_C4985_05-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-05 13:38:01] DEBUG MATERIALI contiene (2 file): DDT_0082W_C4985_05-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-05 13:38:01] DEBUG dedupe: nessuna riga esistente, scrivo in nuova riga 9
+[2025-09-05 13:38:01] DEBUG prezzoVendita ricevuto='7.7' -> usato=7.7
+[2025-09-05 13:38:01] DEBUG dedupe: nessuna riga esistente, scrivo in nuova riga 9
+[2025-09-05 13:38:01] DEBUG prezzoVendita ricevuto='7.7' -> usato=7.7
+[2025-09-05 13:38:01] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 9) | NomeCommessa='reglette a L skin' | Codice='C4985' | PrezzoVendita=7.7 | PDF_IN='DDT_0082W_C4985_05-09-2025.pdf'
+[2025-09-05 13:38:01] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 9) | NomeCommessa='reglette a L skin' | Codice='C4985' | PrezzoVendita=7.7 | PDF_IN='DDT_0082W_C4985_05-09-2025.pdf'
+[2025-09-05 13:38:01] DEBUG DATI keys=['codiceCommessa', 'quantita', 'folderPath', 'colli', 'oreLavorazione', 'nomeCommessa', 'prezzoVendita', 'descrizione']
+[2025-09-05 13:38:01] DEBUG nomeCommessa='OAP_reglette a L skin_P_C4985' descrizione='Assembraggio OAP_reglette a L skin_P_C4985'
+[2025-09-05 13:38:01] DEBUG estrazione: sorgente='Assembraggio OAP_reglette a L skin_P_C4985' -> estratto='reglette a L skin'
+[2025-09-05 13:38:01] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\OAP_reglette a L skin_P_C4985\MATERIALI' esiste=True
+[2025-09-05 13:38:01] DEBUG codice_commessa_norm='C4985' (raw='C4985')
+[2025-09-05 13:38:01] DEBUG MATERIALI contiene (2 file): DDT_0082W_C4985_05-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-05 13:38:01] DEBUG match regex ENTRATA: DDT_0082W_C4985_05-09-2025.pdf
+[2025-09-05 13:38:01] DEBUG MATERIALI contiene (2 file): DDT_0082W_C4985_05-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-05 13:38:01] DEBUG dedupe: sovrascrivo riga esistente 9 per DDT 0082W
+[2025-09-05 13:38:01] DEBUG prezzoVendita ricevuto='7.7' -> usato=7.7
+[2025-09-05 13:38:01] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 9) | NomeCommessa='reglette a L skin' | Codice='C4985' | PrezzoVendita=7.7 | PDF_IN='DDT_0082W_C4985_05-09-2025.pdf'
