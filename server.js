@@ -168,16 +168,41 @@ app.post('/api/open-folder-local', (req, res) => {
 // ───────────────────────────────────────────────────────────────────────────────
 app.post('/api/save-pdf-report', (req, res) => {
   const { folderPath, pdfData, fileName } = req.body;
-  if (!folderPath || !pdfData) return res.status(400).json({ message: "I parametri 'folderPath' e 'pdfData' sono obbligatori." });
-  if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
+  if (!folderPath || !pdfData) {
+    return res.status(400).json({ message: "I parametri 'folderPath' e 'pdfData' sono obbligatori." });
+  }
+
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdirSync(folderPath, { recursive: true });
+  }
 
   const pdfPath = path.join(folderPath, fileName || 'report.pdf');
-  const idx = pdfData.indexOf('base64,'); if (idx === -1) return res.status(400).json({ message: 'Formato di pdfData non valido.' });
+
+  // togli la parte "data:application/pdf;base64," e tieni solo i byte
+  const idx = pdfData.indexOf('base64,');
+  if (idx === -1) {
+    return res.status(400).json({ message: 'Formato di pdfData non valido.' });
+  }
   const pdfBuffer = Buffer.from(pdfData.substring(idx + 'base64,'.length), 'base64');
 
-  fs.writeFile(pdfPath, pdfBuffer, (err) => {
-    if (err) return res.status(500).json({ message: 'Errore nel salvataggio del PDF', error: err.toString() });
-    res.json({ message: 'PDF salvato con successo!', path: pdfPath });
+  // ⛔ se esiste già, blocchiamo subito e rispondiamo con 409
+  if (fs.existsSync(pdfPath)) {
+    return res.status(409).json({ message: 'File già esistente: non sovrascrivo.', path: pdfPath });
+  }
+
+  // scrittura atomica: fallisce se il file esiste già
+  fs.open(pdfPath, 'wx', (err, fd) => {
+    if (err) {
+      return res.status(500).json({ message: 'Errore apertura file (wx).', error: err.toString() });
+    }
+    fs.write(fd, pdfBuffer, 0, pdfBuffer.length, null, (err2) => {
+      if (err2) {
+        try { fs.closeSync(fd); } catch {}
+        return res.status(500).json({ message: 'Errore scrivendo il PDF', error: err2.toString() });
+      }
+      try { fs.closeSync(fd); } catch {}
+      return res.json({ message: 'PDF salvato con successo!', path: pdfPath });
+    });
   });
 });
 
@@ -494,17 +519,11 @@ async function generaBollaEntrata({ folderPath, advance = true }) {
 try { syncProgressivi({ forT: false, forW: true }); } catch {}
 
 
-    // progressivo ENTRATA (senza prefisso)
-let numeroPuro;
-if (advance) {
-  const bolle = getBolleEntrata();
-  numeroPuro = pad4(bolle.progressivo);
-  saveBolleEntrata(bolle.progressivo + 1);
-} else {
-  // solo lettura del prossimo numero, senza avanzare
-  const bolle = getBolleEntrata();
-  numeroPuro = pad4(bolle.progressivo);
-}
+        // progressivo ENTRATA (senza prefisso) — NON avanzare subito
+    const bolle = getBolleEntrata();
+    const progressivoCorrente = bolle.progressivo;
+    const numeroPuro = pad4(progressivoCorrente);
+
 
 
     // impostazioni: master ENTRATA
@@ -584,17 +603,45 @@ if (lname.includes('ritiro'))           { form.getTextField(name).setText(dataTr
       }
     } catch {} // PDF senza form: va bene, salviamo copia
 
-    fs.writeFileSync(outPath, await pdfDoc.save());
+    const pdfData = await pdfDoc.save();
 
-    return {
-      ok: true,
-      path: outPath,
-      fileName: nomeFile,
-      numeroDoc,
-      dataDocIT,
-      codiceVisivo,
-      materialiPath
-    };
+    // Scrittura atomica: solo una chiamata può creare il file
+    try {
+      const fd = fs.openSync(outPath, 'wx'); // fallisce se il file esiste già
+      try {
+        fs.writeFileSync(fd, pdfData);
+      } finally {
+        try { fs.closeSync(fd); } catch {}
+      }
+
+      // Avanza il progressivo SOLO se abbiamo scritto davvero il file
+      if (advance) saveBolleEntrata(progressivoCorrente + 1);
+
+      return {
+        ok: true,
+        path: outPath,
+        fileName: nomeFile,
+        numeroDoc,
+        dataDocIT,
+        codiceVisivo,
+        materialiPath
+      };
+    } catch (err) {
+      if (err && err.code === 'EEXIST') {
+        // File già creato da un’altra chiamata concorrente: non avanzare
+        return {
+          ok: true,
+          path: outPath,
+          fileName: nomeFile,
+          numeroDoc,
+          dataDocIT,
+          codiceVisivo,
+          materialiPath,
+          note: 'DDT W già presente: evitata duplicazione'
+        };
+      }
+      return { ok:false, error: err?.message || String(err) };
+    }
   } catch (e) {
     return { ok:false, error: e?.message || String(e) };
   }
