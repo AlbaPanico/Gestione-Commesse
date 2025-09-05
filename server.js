@@ -1512,11 +1512,25 @@ app.post('/api/rigenera-report-settimanale', async (req, res) => {
 app.get('/api/settimanali-disponibili', (req, res) => {
   const settingsPath = path.join(__dirname, 'data', 'stampantiSettings.json');
   let reportGeneralePath = path.join(__dirname, 'data');
-  if (fs.existsSync(settingsPath)) { try { const s = JSON.parse(fs.readFileSync(settingsPath, 'utf8')); if (s.reportGeneralePath) reportGeneralePath = s.reportGeneralePath; } catch {} }
-  const files = fs.readdirSync(reportGeneralePath).filter(f => /^Reportgenerali_Stampanti_(\d+)_(\d+)\.json$/.test(f));
-  const settimane = files.map(f => { const m = f.match(/^Reportgenerali_Stampanti_(\d+)_(\d+)\.json$/); return m ? { week: Number(m[1]), year: Number(m[2]), filename: f } : null; })
-    .filter(Boolean).sort((a, b) => b.year - a.year || b.week - a.week);
-  res.json(settimane);
+  if (fs.existsSync(settingsPath)) {
+    try {
+      const s = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+      if (s.reportGeneralePath) reportGeneralePath = s.reportGeneralePath;
+    } catch {}
+  }
+
+  // elenca SOLO i nuovi file unificati; se non ce ne sono, tenta il legacy per retrocompatibilità
+  let files = fs.readdirSync(reportGeneralePath).filter(f => /^Reportgenerali_Arizona_(\d+)_(\d+)\.json$/.test(f));
+  if (!files.length) {
+    files = fs.readdirSync(reportGeneralePath).filter(f => /^Reportgenerali_Stampanti_(\d+)_(\d+)\.json$/.test(f));
+  }
+
+  const weeks = files.map(f => {
+    const m = f.match(/_(\d+)_(\d+)\.json$/);
+    return m ? { week: Number(m[1]), year: Number(m[2]), filename: f } : null;
+  }).filter(Boolean).sort((a, b) => b.year - a.year || b.week - a.week);
+
+  res.json(weeks);
 });
 
 // ───────────────────────────────────────────────────────────────────────────────
