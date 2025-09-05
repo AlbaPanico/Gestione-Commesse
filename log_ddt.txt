@@ -859,3 +859,25 @@
 [2025-09-05 12:52:26] DEBUG match regex USCITA: DDT_0036T_C9999_05-09-2025.pdf
 [2025-09-05 12:52:26] DEBUG prezzoVendita ricevuto='123' -> usato=123.0
 [2025-09-05 12:52:26] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 8) | NomeCommessa='aaa' | Codice='C9999' | PrezzoVendita=123.0 | PDF_IN='DDT_0078W_C9999_05-09-2025.pdf'
+[2025-09-05 12:55:00] DEBUG DATI keys=['reportDdtPath', 'dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'oreLavorazione', 'costoPz', 'costoTot', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita']
+[2025-09-05 12:55:00] DEBUG nomeCommessa='LAVAZZA_expo cioccolato 12 gusti_P_C4945' descrizione='Assembraggio LAVAZZA_expo cioccolato 12 gusti_P_C4945'
+[2025-09-05 12:55:00] DEBUG estrazione: sorgente='Assembraggio LAVAZZA_expo cioccolato 12 gusti_P_C4945' -> estratto='expo cioccolato 12 gusti'
+[2025-09-05 12:55:00] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\LAVAZZA_expo cioccolato 12 gusti_P_C4945\MATERIALI' esiste=True
+[2025-09-05 12:55:00] DEBUG codice_commessa_norm='C4945' (raw='C4945')
+[2025-09-05 12:55:00] DEBUG MATERIALI contiene (4 file): DDT_0037T_C4945_05-09-2025.pdf, DDT_0079W_C4945_05-09-2025.pdf, DISTINTA com. 4945.xlsx, DistintaMateriali_LAVAZZA_expo cioccolato 12 gusti_P_C4945.xlsx
+[2025-09-05 12:55:00] DEBUG match regex ENTRATA: DDT_0079W_C4945_05-09-2025.pdf
+[2025-09-05 12:55:00] DEBUG MATERIALI contiene (4 file): DDT_0037T_C4945_05-09-2025.pdf, DDT_0079W_C4945_05-09-2025.pdf, DISTINTA com. 4945.xlsx, DistintaMateriali_LAVAZZA_expo cioccolato 12 gusti_P_C4945.xlsx
+[2025-09-05 12:55:00] DEBUG match regex USCITA: DDT_0037T_C4945_05-09-2025.pdf
+[2025-09-05 12:55:00] DEBUG prezzoVendita ricevuto='57.13' -> usato=57.13
+[2025-09-05 12:55:00] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 7) | NomeCommessa='expo cioccolato 12 gusti' | Codice='C4945' | PrezzoVendita=57.13 | PDF_IN='DDT_0079W_C4945_05-09-2025.pdf'
+[2025-09-05 12:55:02] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'oreLavorazione', 'costoPz', 'costoTot', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita']
+[2025-09-05 12:55:02] DEBUG nomeCommessa='LAVAZZA_expo cioccolato 12 gusti_P_C4945' descrizione='Assembraggio LAVAZZA_expo cioccolato 12 gusti_P_C4945'
+[2025-09-05 12:55:02] DEBUG estrazione: sorgente='Assembraggio LAVAZZA_expo cioccolato 12 gusti_P_C4945' -> estratto='expo cioccolato 12 gusti'
+[2025-09-05 12:55:02] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\LAVAZZA_expo cioccolato 12 gusti_P_C4945\MATERIALI' esiste=True
+[2025-09-05 12:55:02] DEBUG codice_commessa_norm='C4945' (raw='C4945')
+[2025-09-05 12:55:02] DEBUG MATERIALI contiene (4 file): DDT_0037T_C4945_05-09-2025.pdf, DDT_0079W_C4945_05-09-2025.pdf, DISTINTA com. 4945.xlsx, DistintaMateriali_LAVAZZA_expo cioccolato 12 gusti_P_C4945.xlsx
+[2025-09-05 12:55:02] DEBUG match regex ENTRATA: DDT_0079W_C4945_05-09-2025.pdf
+[2025-09-05 12:55:02] DEBUG MATERIALI contiene (4 file): DDT_0037T_C4945_05-09-2025.pdf, DDT_0079W_C4945_05-09-2025.pdf, DISTINTA com. 4945.xlsx, DistintaMateriali_LAVAZZA_expo cioccolato 12 gusti_P_C4945.xlsx
+[2025-09-05 12:55:02] DEBUG match regex USCITA: DDT_0037T_C4945_05-09-2025.pdf
+[2025-09-05 12:55:02] DEBUG prezzoVendita ricevuto='57.13' -> usato=57.13
+[2025-09-05 12:55:02] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 8) | NomeCommessa='expo cioccolato 12 gusti' | Codice='C4945' | PrezzoVendita=57.13 | PDF_IN='DDT_0079W_C4945_05-09-2025.pdf'
