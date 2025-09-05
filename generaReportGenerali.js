@@ -167,7 +167,11 @@ function backupAndResetWeeklyReportsIfNeeded() {
   }
   const reportFolder = settings.reportGeneralePath;
   if (!reportFolder || !fs.existsSync(reportFolder)) return;
-  const files = fs.readdirSync(reportFolder).filter(f => /^Reportgenerali_.*\.json$/.test(f));
+  const files = fs.readdirSync(reportFolder)
+    .filter(f =>
+      /^Reportgenerali_.*\.json$/.test(f) &&
+      !/_\d{1,2}_\d{4}\.json$/.test(f)
+    );
   if (!files.length) {
     console.warn("[backupAndResetWeeklyReports] Nessun file Reportgenerali_<Stampante>.json trovato in", reportFolder);
     return;
