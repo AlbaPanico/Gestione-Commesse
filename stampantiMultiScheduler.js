@@ -65,7 +65,7 @@ function downloadFile(url, dest, cb) {
 ----------------------------------------------------------- */
 async function rigeneraSettimana(week, year) {
   try {
-    // 1) recupera la cartella dei report dal settings
+    // 1) cartella report
     let reportGeneralePath = null;
     if (fs.existsSync(settingsPath)) {
       try {
@@ -76,11 +76,23 @@ async function rigeneraSettimana(week, year) {
       } catch {}
     }
     if (!reportGeneralePath) reportGeneralePath = path.join(__dirname, "data");
+    if (!fs.existsSync(reportGeneralePath)) fs.mkdirSync(reportGeneralePath, { recursive: true });
 
-    // 2) leggi tutti i JSON per-stampante: Reportgenerali_<stampante>.json (escludi i settimanali)
+    // 2) leggi SOLO i JSON per-stampante storici (se presenti) per ricostruire la settimana
     const files = fs.readdirSync(reportGeneralePath)
       .filter(f => /^Reportgenerali_.*\.json$/i.test(f))
-      .filter(f => !/^Reportgenerali_Stampanti_\d{1,2}_\d{4}\.json$/i.test(f)); // esclude i settimanali
+      .filter(f => !/^Reportgenerali_(Arizona|Stampanti)_\d{1,2}_\d{4}\.json$/i.test(f)); // esclude già i settimanali
+
+    const toMillis = (dateStr, timeStr = "00:00:00") => {
+      if (!dateStr) return NaN;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return new Date(`${dateStr}T${timeStr}`).getTime();
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+        const [d, m, y] = dateStr.split("/");
+        const [hh, mm, ss] = (timeStr || "00:00:00").split(":");
+        return new Date(y, m - 1, d, hh, mm, ss).getTime();
+      }
+      return NaN;
+    };
 
     const allRows = [];
     for (const fname of files) {
@@ -92,32 +104,17 @@ async function rigeneraSettimana(week, year) {
       } catch { arr = []; }
       if (!Array.isArray(arr) || arr.length === 0) continue;
 
-      // normalizza e calcola la data "giorno" da campo startdate / readydate / receptiondate
       for (const r of arr) {
-        const dStr = (r.startdate || r.readydate || r.receptiondate || "").slice(0, 10);
-        let d = null;
-        if (/\d{4}-\d{2}-\d{2}/.test(dStr)) {
-          d = new Date(dStr + "T00:00:00");
-        } else {
-          // fallback: oggi
-          const today = new Date();
-          d = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        }
-
+        const ts = toMillis(r.startdate, r.starttime) || toMillis(r.readydate, r.readytime);
+        const d = ts ? new Date(ts) : new Date();
         const w = getISOWeek(d);
         const y = getISOWeekYear(d);
-        if (w === Number(week) && y === Number(year)) {
-          allRows.push({
-            ...r,
-            source: fname,
-            giorno: d.toISOString().slice(0, 10)
-          });
-        }
+        if (w === Number(week) && y === Number(year)) allRows.push({ ...r });
       }
     }
 
-    // 3) scrivi/riscrivi il file settimanale
-    const weeklyFile = path.join(reportGeneralePath, `Reportgenerali_Stampanti_${week}_${year}.json`);
+    // 3) scrivi SOLO il nuovo unificato
+    const weeklyFile = path.join(reportGeneralePath, `Reportgenerali_Arizona_${week}_${year}.json`);
     fs.writeFileSync(weeklyFile, JSON.stringify(allRows, null, 2), 'utf8');
     console.log(`✅ Rigenerata settimana ${week}/${year}: ${weeklyFile} (${allRows.length} righe)`);
   } catch (e) {
