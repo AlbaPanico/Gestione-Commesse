@@ -557,136 +557,161 @@ function findUscitaOptional(materialiPath, codiceVisivo) {
 // Core: genera il PDF W e lo salva in <cartella>/MATERIALI
 // Funzione unica per DDT ENTRATA (manuale e automatica)
 async function generaBollaEntrata({ folderPath, advance = true }) {
-
   try {
-    if (!folderPath || !fs.existsSync(folderPath)) return { ok:false, error:'folderPath non valido' };
+    if (!folderPath || !fs.existsSync(folderPath)) {
+      return { ok: false, error: 'folderPath non valido' };
+    }
+
     const materialiPath = path.join(folderPath, 'MATERIALI');
     if (!fs.existsSync(materialiPath)) fs.mkdirSync(materialiPath, { recursive: true });
 
-// sincronizza sempre prima di leggere/avanzare il progressivo W
-try { syncProgressivi({ forT: false, forW: true }); } catch {}
-
-
-        // progressivo ENTRATA (senza prefisso) — NON avanzare subito
-    const bolle = getBolleEntrata();
-    const progressivoCorrente = bolle.progressivo;
-    const numeroPuro = pad4(progressivoCorrente);
-
-
-
-    // impostazioni: master ENTRATA
-    if (!fs.existsSync(settingsFilePath)) return { ok:false, error:'impostazioni non trovate' };
-    const settings = JSON.parse(fs.readFileSync(settingsFilePath, 'utf8') || '{}');
-    const masterPDF = settings.masterBolleEntrata;
-    if (!masterPDF || !fs.existsSync(masterPDF)) return { ok:false, error:'masterBolleEntrata non impostato/trovato' };
-
-    // dati
-let codiceVisivoRaw = getCodiceCommessaVisuale(folderPath); // es. C8888-11
-let codiceVisivo = normalizeCodiceVisivo(codiceVisivoRaw);
-const numeroDoc = numeroPuro + 'W';
-
-    const dataDocIT = new Date().toLocaleDateString('it-IT');
-    const dataFile = oggiStr();
-    const nomeFile = `DDT_${numeroPuro}W_${codiceVisivo}_${dataFile}.pdf`; // ✅ compatibile con regex Python
-    const outPath = path.join(materialiPath, nomeFile);
-
-    const baseName = path.basename(folderPath);
-    const descrizione = 'Assembraggio ' + baseName;
-
-    let quantita = '';
+    // ── LOCK per CARTELLA: una sola generazione W alla volta per questa commessa
+    const locksDir = path.join(__dirname, 'data', 'locks');
+    if (!fs.existsSync(locksDir)) fs.mkdirSync(locksDir, { recursive: true });
+    const lockName = 'w_' + crypto.createHash('md5').update(path.resolve(folderPath)).digest('hex') + '.lock';
+    const lockPath = path.join(locksDir, lockName);
+    let lockFd = null;
     try {
-      const rep = JSON.parse(fs.readFileSync(path.join(folderPath, 'report.json'), 'utf8') || '{}');
-      if (rep && (rep.quantita !== undefined && rep.quantita !== null)) quantita = String(rep.quantita);
-    } catch {}
-    const colli = getColliDaReportSync(folderPath, '');
-
-    // T opzionale
-const uscita = findUscitaOptional(materialiPath, codiceVisivo);
-const nsDdt = uscita?.numeroT || '';
-
-// ⬇️ questa è la data mostrata vicino a "Ns DDT ... del"
-//    resta VUOTA se non esiste una T
-const dataNsDdt = uscita?.dataT || '';
-
-// ⬇️ queste sono le date operative (trasporto/ritiro)
-//    se non c'è T, usano OGGI
-const dataTrasportoRitiro = uscita?.dataT || dataDocIT;
-
-
-
-    // compila PDF (se form presente)
-    const pdfBytes = fs.readFileSync(masterPDF);
-    const pdfDoc = await PDFDocument.load(pdfBytes);
-    try {
-      const form = pdfDoc.getForm();
-      const fields = form.getFields();
-      for (const f of fields) {
-        const name = f.getName();
-        const lname = String(name).toLowerCase();
-        try {
-          if (lname.includes('numero documento')) { form.getTextField(name).setText(numeroDoc); continue; }
-          if (lname.includes('data documento'))   { form.getTextField(name).setText(dataDocIT); continue; }
-          if (name === 'Descrizione')             { form.getTextField(name).setText(descrizione); continue; }
-          if (name === 'qta')                     { form.getTextField(name).setText(String(quantita ?? '')); continue; }
-          if (name === 'colli')                   { form.getTextField(name).setText(String(colli ?? '')); continue; }
-         if (name === 'Ns DDT')                  { form.getTextField(name).setText(nsDdt); continue; }
-
-// ✅ data accanto a "Ns DDT": vuota se non c'è T
-if (name === 'del')                     { form.getTextField(name).setText(dataNsDdt); continue; }
-
-// ✅ date operative (trasporto/ritiro): fallback OGGI
-if (name === 'Testo8')                  { form.getTextField(name).setText(dataTrasportoRitiro); continue; }
-if (name === 'Testo9')                  { form.getTextField(name).setText(dataTrasportoRitiro); continue; }
-
-// fallback su nomi campo alternativi
-if (lname.includes('trasporto'))        { form.getTextField(name).setText(dataTrasportoRitiro); continue; }
-if (lname.includes('ritiro'))           { form.getTextField(name).setText(dataTrasportoRitiro); continue; }
-
-
-// extra fallback per campi chiamati in modo diverso
-if (lname.includes('trasporto'))        { form.getTextField(name).setText(dataTrasportoRitiro); continue; }
-if (lname.includes('ritiro'))           { form.getTextField(name).setText(dataTrasportoRitiro); continue; }
-
-        } catch {}
+      lockFd = fs.openSync(lockPath, 'wx'); // fallisce se già in corso
+    } catch (e) {
+      if (e && e.code === 'EEXIST') {
+        return { ok: true, note: 'Generazione W già in corso per questa commessa: skip' };
       }
-    } catch {} // PDF senza form: va bene, salviamo copia
-
-    const pdfData = await pdfDoc.save();
-
-    // Log obiettivo file/numero
-    console.log(`[generaBollaEntrata] target=${outPath} numeroDoc=${numeroDoc}`);
-
-    // Guard non bloccante: se il file esiste già, non avanzare e non riscrivere
-    if (fs.existsSync(outPath)) {
-      console.log('[generaBollaEntrata] skip: DDT W già presente (pre-check).');
-      return {
-        ok: true,
-        path: outPath,
-        fileName: nomeFile,
-        numeroDoc,
-        dataDocIT,
-        codiceVisivo,
-        materialiPath,
-        note: 'DDT W già presente (pre-check): evitata duplicazione'
-      };
+      return { ok: false, error: e?.message || String(e) };
     }
 
-    // Scrittura atomica: solo una chiamata può creare il file
     try {
-      const fd = fs.openSync(outPath, 'wx'); // fallisce se il file esiste già
-      try {
-        fs.writeFileSync(fd, pdfData);
-      } finally {
-        try { fs.closeSync(fd); } catch {}
+      // sincronizza sempre prima di usare progressivo W
+      try { syncProgressivi({ forT: false, forW: true }); } catch {}
+
+      // impostazioni: master ENTRATA
+      if (!fs.existsSync(settingsFilePath)) return { ok:false, error:'impostazioni non trovate' };
+      const settings = JSON.parse(fs.readFileSync(settingsFilePath, 'utf8') || '{}');
+      const masterPDF = settings.masterBolleEntrata;
+      if (!masterPDF || !fs.existsSync(masterPDF)) {
+        return { ok:false, error:'masterBolleEntrata non impostato/trovato' };
       }
 
-      // Avanza il progressivo SOLO se abbiamo scritto davvero il file
-      if (advance) {
-        saveBolleEntrata(progressivoCorrente + 1);
-        console.log(`[generaBollaEntrata] creato ${nomeFile} e avanzato progressivo a ${progressivoCorrente + 1}`);
-      } else {
-        console.log(`[generaBollaEntrata] creato ${nomeFile} senza avanzare progressivo (advance=false)`);
+      // dati base
+      let codiceVisivoRaw = getCodiceCommessaVisuale(folderPath); // es. C8888-11
+      let codiceVisivo = normalizeCodiceVisivo(codiceVisivoRaw);
+
+      const dataDocIT = new Date().toLocaleDateString('it-IT');
+      const dataFileDash = oggiStr();               // dd-mm-yyyy
+      const dataFileUnd  = dataFileDash.replace(/-/g, '_');
+
+      // ── PRE-CHECK: se esiste già una W per QUESTO CODICE e OGGI, non rigenerare
+      const pattToday = [
+        new RegExp(`^DDT_(\\d{4})W_.*${escapeReg(codiceVisivo)}_${escapeReg(dataFileDash)}\\.pdf$`, 'i'),
+        new RegExp(`^DDT_(\\d{4})W_.*${escapeReg(codiceVisivo)}_${escapeReg(dataFileUnd)}\\.pdf$`,  'i'),
+      ];
+      const giàPresenteOggi = fs.readdirSync(materialiPath).some(fn => pattToday.some(p => p.test(fn)));
+      if (giàPresenteOggi) {
+        return {
+          ok: true,
+          materialiPath,
+          fileName: null,
+          numeroDoc: null,
+          dataDocIT,
+          codiceVisivo,
+          note: 'DDT W odierno già presente per questa commessa: evitata duplicazione'
+        };
       }
+
+      // progressivo ENTRATA: leggi ma NON avanzare ancora
+      const bolle = getBolleEntrata();
+      const progressivoCorrente = bolle.progressivo;
+      const numeroPuro = pad4(progressivoCorrente);
+      const numeroDoc = numeroPuro + 'W';
+
+      // descrizione, qta, colli
+      const baseName = path.basename(folderPath);
+      const descrizione = 'Assembraggio ' + baseName;
+
+      let quantita = '';
+      try {
+        const rep = JSON.parse(fs.readFileSync(path.join(folderPath, 'report.json'), 'utf8') || '{}');
+        if (rep && (rep.quantita !== undefined && rep.quantita !== null)) quantita = String(rep.quantita);
+      } catch {}
+      const colli = getColliDaReportSync(folderPath, '');
+
+      // Ns DDT uscita opzionale
+      const uscita = findUscitaOptional(materialiPath, codiceVisivo);
+      const nsDdt = uscita?.numeroT || '';
+      const dataNsDdt = uscita?.dataT || '';
+
+      // date operative (trasporto/ritiro): se non c'è T -> OGGI
+      const dataTrasportoRitiro = uscita?.dataT || dataDocIT;
+
+      // file di destinazione (con numero corrente)
+      const nomeFile = `DDT_${numeroPuro}W_${codiceVisivo}_${dataFileDash}.pdf`;
+      const outPath  = path.join(materialiPath, nomeFile);
+
+      // se esiste già proprio questo file, non avanzare
+      if (fs.existsSync(outPath)) {
+        return {
+          ok: true,
+          path: outPath,
+          fileName: nomeFile,
+          numeroDoc,
+          dataDocIT,
+          codiceVisivo,
+          materialiPath,
+          note: 'DDT W già presente (stesso numero): evitata duplicazione'
+        };
+      }
+
+      // compila PDF (form se presente)
+      const pdfBytes = fs.readFileSync(masterPDF);
+      const pdfDoc = await PDFDocument.load(pdfBytes);
+      try {
+        const form = pdfDoc.getForm();
+        const fields = form.getFields();
+        for (const f of fields) {
+          const name = f.getName();
+          const lname = String(name).toLowerCase();
+          try {
+            if (lname.includes('numero documento')) { form.getTextField(name).setText(numeroDoc); continue; }
+            if (lname.includes('data documento'))   { form.getTextField(name).setText(dataDocIT); continue; }
+            if (name === 'Descrizione')             { form.getTextField(name).setText(descrizione); continue; }
+            if (name === 'qta')                     { form.getTextField(name).setText(String(quantita ?? '')); continue; }
+            if (name === 'colli')                   { form.getTextField(name).setText(String(colli ?? '')); continue; }
+            if (name === 'Ns DDT')                  { form.getTextField(name).setText(nsDdt); continue; }
+            if (name === 'del')                     { form.getTextField(name).setText(dataNsDdt); continue; }
+            if (name === 'Testo8')                  { form.getTextField(name).setText(dataTrasportoRitiro); continue; }
+            if (name === 'Testo9')                  { form.getTextField(name).setText(dataTrasportoRitiro); continue; }
+            if (lname.includes('trasporto'))        { form.getTextField(name).setText(dataTrasportoRitiro); continue; }
+            if (lname.includes('ritiro'))           { form.getTextField(name).setText(dataTrasportoRitiro); continue; }
+          } catch {}
+        }
+      } catch {} // PDF senza form: ok
+
+      // ── SCRITTURA ATOMICA + AVANZO SOLO SE SCRITTO
+      const outBytes = await pdfDoc.save();
+      try {
+        const fd = fs.openSync(outPath, 'wx'); // fallisce se qualcuno l'ha appena creato
+        try { fs.writeFileSync(fd, outBytes); }
+        finally { try { fs.closeSync(fd); } catch {} }
+      } catch (err) {
+        if (err && err.code === 'EEXIST') {
+          // file creato da un’altra chiamata nel frattempo → non avanzare
+          return {
+            ok: true,
+            path: outPath,
+            fileName: nomeFile,
+            numeroDoc,
+            dataDocIT,
+            codiceVisivo,
+            materialiPath,
+            note: 'DDT W già presente: creazione concorrente rilevata'
+          };
+        }
+        console.warn('[generaBollaEntrata] errore scrittura atomica:', err?.message || String(err));
+        return { ok:false, error: err?.message || String(err) };
+      }
+
+      // Avanza il progressivo SOLO ora che il file è stato scritto
+      if (advance) saveBolleEntrata(progressivoCorrente + 1);
 
       return {
         ok: true,
@@ -697,24 +722,12 @@ if (lname.includes('ritiro'))           { form.getTextField(name).setText(dataTr
         codiceVisivo,
         materialiPath
       };
-    } catch (err) {
-      if (err && err.code === 'EEXIST') {
-        // File già creato da un’altra chiamata concorrente: non avanzare
-        console.log('[generaBollaEntrata] race: file già creato da un’altra chiamata. Skip avanzamento.');
-        return {
-          ok: true,
-          path: outPath,
-          fileName: nomeFile,
-          numeroDoc,
-          dataDocIT,
-          codiceVisivo,
-          materialiPath,
-          note: 'DDT W già presente: evitata duplicazione (race)'
-        };
-      }
-      console.warn('[generaBollaEntrata] errore scrittura atomica:', err?.message || String(err));
-      return { ok:false, error: err?.message || String(err) };
+    } finally {
+      // Rilascio lock per la cartella
+      try { if (lockFd !== null) fs.closeSync(lockFd); } catch {}
+      try { if (fs.existsSync(lockPath)) fs.unlinkSync(lockPath); } catch {}
     }
+
   } catch (e) {
     return { ok:false, error: e?.message || String(e) };
   }
