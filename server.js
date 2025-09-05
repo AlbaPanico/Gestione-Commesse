@@ -1453,18 +1453,31 @@ app.get('/api/storico-settimana', (req, res) => {
   const settingsPath = path.join(__dirname, 'data', 'stampantiSettings.json');
   let reportGeneralePath = path.join(__dirname, 'data');
   if (fs.existsSync(settingsPath)) {
-    try { const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8')); reportGeneralePath = settings.reportGeneralePath || reportGeneralePath; }
-    catch {}
+    try {
+      const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+      reportGeneralePath = settings.reportGeneralePath || reportGeneralePath;
+    } catch {}
   }
+
   let week = parseInt(req.query.week), year = parseInt(req.query.year);
   const now = new Date();
-  function getWeekNumber(d) { d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)); const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1)); return Math.ceil((((d - yearStart) / 86400000) + 1)/7); }
+  const getWeekNumber = (d) => { d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)); const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1)); return Math.ceil((((d - yearStart) / 86400000) + 1)/7); };
   if (!week) week = getWeekNumber(now);
   if (!year) year = now.getFullYear();
 
-  const file = path.join(reportGeneralePath, `Reportgenerali_Stampanti_${week}_${year}.json`);
-  if (!fs.existsSync(file)) return res.json([]);
-  try { return res.json(JSON.parse(fs.readFileSync(file, 'utf8'))); } catch { return res.json([]); }
+  // nuova nomenclatura
+  const fileNew = path.join(reportGeneralePath, `Reportgenerali_Arizona_${week}_${year}.json`);
+  // fallback legacy (solo lettura se presente)
+  const fileOld = path.join(reportGeneralePath, `Reportgenerali_Stampanti_${week}_${year}.json`);
+
+  const file = fs.existsSync(fileNew) ? fileNew : (fs.existsSync(fileOld) ? fileOld : null);
+  if (!file) return res.json([]);
+
+  try {
+    return res.json(JSON.parse(fs.readFileSync(file, 'utf8')));
+  } catch {
+    return res.json([]);
+  }
 });
 
 // serve file dalla cartella reportGeneralePath
