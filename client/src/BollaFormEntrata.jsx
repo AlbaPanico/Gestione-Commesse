@@ -86,19 +86,19 @@ async function salvaBollaNelBackend({ folderPath, fileName, pdfBlob }) {
       const pdfData = reader.result;
       try {
         const r = await fetch("http://192.168.1.250:3001/api/save-pdf-report", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ folderPath, pdfData, fileName }),
-});
-if (r.status === 409) {
-  // già creato da un altro trigger: la trattiamo come “ok”
-  resolve();
-} else if (!r.ok) {
-  const data = await r.json().catch(() => ({}));
-  reject(new Error(data.message || 'Errore salvataggio PDF'));
-} else {
-  resolve();
-}
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ folderPath, pdfData, fileName }),
+        });
+        if (r.status === 409) {
+          // già creato da un altro trigger: la trattiamo come “ok”
+          resolve();
+        } else if (!r.ok) {
+          const data = await r.json().catch(() => ({}));
+          reject(new Error(data.message || 'Errore salvataggio PDF'));
+        } else {
+          resolve();
+        }
 
       } catch (e) {
         reject(e);
@@ -295,15 +295,15 @@ export default function BollaFormEntrata({ onClose, commessa, reportDdtPath }) {
           } else {
             // Se NON trova il DDT di uscita => lascia vuoti i campi legati all’uscita
             campiAuto = {
-  "Ns DDT": "",
-  del: "",
-  // fallback OGGI quando manca la T (allineato all’automatica)
-  Testo8: oggiIT,
-  Testo9: oggiIT,
-  Descrizione: "Assembraggio " + (commessa?.nome || ""),
-  qta: commessa?.quantita || "",
-  colli: colliValue,
-};
+              "Ns DDT": "",
+              del: "",
+              // fallback OGGI quando manca la T (allineato all’automatica)
+              Testo8: oggiIT,
+              Testo9: oggiIT,
+              Descrizione: "Assembraggio " + (commessa?.nome || ""),
+              qta: commessa?.quantita || "",
+              colli: colliValue,
+            };
 
           }
         }
@@ -358,9 +358,8 @@ export default function BollaFormEntrata({ onClose, commessa, reportDdtPath }) {
     const materialiPath = pathBase ? pathBase + "/MATERIALI" : null;
 
     const codiceVisivo = getCodiceVisivo(commessa);     // "C8888-11"
-// NON usiamo più il segmento lungo per il nome file
-const commessaStr = codiceVisivo;                   // uniformiamo al formato T
-
+    // NON usiamo più il segmento lungo per il nome file
+    const commessaStr = codiceVisivo;                   // uniformiamo al formato T
 
     const numeroDdt = numeroBolla + "W";
     const dataDdt = oggiStr().replace(/-/g, "/");
@@ -369,10 +368,8 @@ const commessaStr = codiceVisivo;                   // uniformiamo al formato T
     const nsDdt = formValues["Ns DDT"] || "";
     const del = formValues["del"] || "";
     const percorsoPdf = materialiPath
-  ? materialiPath + "\\" + `DDT_${numeroBolla}W_${commessaStr}_${oggiStr()}.pdf`
-  : "";
-
-
+      ? materialiPath + "\\" + `DDT_${numeroBolla}W_${commessaStr}_${oggiStr()}.pdf`
+      : "";
 
     const oreLavorazione = await calcolaOreLavorate(pathBase);
     const prezzoVendita = await getPrezzoVenditaDaReport(commessa);
@@ -493,28 +490,32 @@ const commessaStr = codiceVisivo;                   // uniformiamo al formato T
     const form = pdfDoc.getForm();
     const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-    // helper wrapping a capo per parole
-    const wrapText = (str, max = 52) => {
-      const words = String(str || "").split(/\s+/);
-      const lines = [];
-      let line = "";
-      for (const w of words) {
-        if (!w) continue;
-        const candidate = line ? line + " " + w : w;
-        if (candidate.length <= max) line = candidate;
-        else { lines.push(line); line = w; }
-      }
-      if (line) lines.push(line);
-      return lines.join("\n");
-    };
-
     pdfFieldList.forEach(({ name }) => {
       if (name === "Descrizione") {
         try {
           const tf = form.getTextField(name);
-          tf.enableMultiline();
-          tf.setText(wrapText(descrizioneStandard, 52)); // va a capo
-          tf.setFontSize(10); // opzionale: testo più piccolo se lungo
+
+          // Forza singola riga (se il template fosse multilinea)
+          tf.disableMultiline?.();
+
+          // larghezza utile campo (fallback se API assente)
+          const widget = tf.acroField.getWidgets()[0];
+          let fieldWidth = 220;
+          try {
+            const r = widget.getRectangle ? widget.getRectangle() : widget.getRect?.();
+            fieldWidth = Array.isArray(r) ? Math.abs(r[2] - r[0]) : (r?.width ?? fieldWidth);
+          } catch {}
+          const maxWidth = fieldWidth - 4;
+
+          const testo = descrizioneStandard;
+          let size = 14;
+          const minSize = 5;
+          while (size > minSize && helv.widthOfTextAtSize(testo, size) > maxWidth) {
+            size -= 0.5;
+          }
+
+          tf.setText(testo);
+          tf.setFontSize?.(size);
         } catch {}
       } else if (name === "qta") {
         try { form.getTextField(name).setText(String(quantita)); } catch {}
@@ -525,7 +526,7 @@ const commessaStr = codiceVisivo;                   // uniformiamo al formato T
       }
     });
 
-    // rigenera le appearance con il font scelto (utile per multiline)
+    // rigenera le appearance con il font scelto (necessario per font-size dinamico)
     try { form.updateFieldAppearances(helv); } catch {}
 
     const dataFile = oggiStr();
