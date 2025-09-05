@@ -164,7 +164,9 @@ app.post('/api/open-folder-local', (req, res) => {
 });
 
 // ───────────────────────────────────────────────────────────────────────────────
+// // ───────────────────────────────────────────────────────────────────────────────
 // Upload report (PDF/Excel) in cartelle commessa
+// – Patch: anti-doppio DDT W nello stesso giorno per la stessa commessa
 // ───────────────────────────────────────────────────────────────────────────────
 app.post('/api/save-pdf-report', (req, res) => {
   const { folderPath, pdfData, fileName } = req.body;
@@ -185,26 +187,94 @@ app.post('/api/save-pdf-report', (req, res) => {
   }
   const pdfBuffer = Buffer.from(pdfData.substring(idx + 'base64,'.length), 'base64');
 
-  // ⛔ se esiste già, blocchiamo subito e rispondiamo con 409
-  if (fs.existsSync(pdfPath)) {
-    return res.status(409).json({ message: 'File già esistente: non sovrascrivo.', path: pdfPath });
+  // ───────────────────────────────────────────────────────────────────────────
+  // LOCK di cartella per evitare salvataggi concorrenti ravvicinati
+  // ───────────────────────────────────────────────────────────────────────────
+  const locksDir = path.join(__dirname, 'data', 'locks');
+  if (!fs.existsSync(locksDir)) fs.mkdirSync(locksDir, { recursive: true });
+  const lockName = 'save_' + crypto.createHash('md5').update(path.resolve(folderPath)).digest('hex') + '.lock';
+  const lockFile = path.join(locksDir, lockName);
+  let lockFd = null;
+  try {
+    lockFd = fs.openSync(lockFile, 'wx');
+  } catch (e) {
+    if (e && e.code === 'EEXIST') {
+      return res.status(423).json({ message: 'Salvataggio in corso, riprova tra poco.' });
+    }
+    return res.status(500).json({ message: 'Errore creando il lock.', error: String(e) });
   }
 
-  // scrittura atomica: fallisce se il file esiste già
-  fs.open(pdfPath, 'wx', (err, fd) => {
-    if (err) {
-      return res.status(500).json({ message: 'Errore apertura file (wx).', error: err.toString() });
+  const releaseLock = () => {
+    try { if (lockFd !== null) fs.closeSync(lockFd); } catch {}
+    try { if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile); } catch {}
+  };
+
+  try {
+    // ⛔ se esiste già proprio quel file, blocchiamo
+    if (fs.existsSync(pdfPath)) {
+      releaseLock();
+      return res.status(409).json({ message: 'File già esistente: non sovrascrivo.', path: pdfPath });
     }
-    fs.write(fd, pdfBuffer, 0, pdfBuffer.length, null, (err2) => {
-      if (err2) {
-        try { fs.closeSync(fd); } catch {}
-        return res.status(500).json({ message: 'Errore scrivendo il PDF', error: err2.toString() });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Se il file è un DDT di ENTRATA (…W…) imponiamo “al massimo 1 al giorno”
+    // per la stessa commessa (codice visivo derivato dalla cartella).
+    // Nome atteso: DDT_####W_<qualcosa_con_codice>_dd-mm-yyyy.pdf (o dd_mm_yyyy)
+    // ─────────────────────────────────────────────────────────────────────────
+    const name = String(fileName || '').trim();
+    const isW = /^DDT_\d{4}W_/i.test(name);
+    if (isW) {
+      // codice “visivo” dalla cartella (es. C8888-11)
+      const codiceVisivo = normalizeCodiceVisivo(getCodiceCommessaVisuale(folderPath));
+      // data dal nome file (preferibile al "today" del server)
+      const m = name.match(/_(\d{2})[-_](\d{2})[-_](\d{4})\.pdf$/i);
+      if (codiceVisivo && m) {
+        const dd = m[1], mm = m[2], yyyy = m[3];
+        const pattOggi = new RegExp(
+          `^DDT_(\\d{4})W_.*${escapeReg(codiceVisivo)}_${escapeReg(dd)}[-_]${escapeReg(mm)}[-_]${escapeReg(yyyy)}\\.pdf$`,
+          'i'
+        );
+        const materialiPath = folderPath; // in questo endpoint arriva già MATERIALI come folderPath
+        // se invece ci passano la cartella madre, prova a puntare a MATERIALI
+        const dirToScan = fs.existsSync(path.join(folderPath, 'MATERIALI')) ? path.join(folderPath, 'MATERIALI') : folderPath;
+
+        try {
+          const existsSameDay = fs.readdirSync(dirToScan).some(fn => pattOggi.test(fn));
+          if (existsSameDay) {
+            releaseLock();
+            return res.status(409).json({
+              message: 'Bolla di ENTRATA già presente per questa commessa nella stessa data. Blocco duplicato.',
+              code: 'W_ALREADY_EXISTS_TODAY',
+            });
+          }
+        } catch (e) {
+          // se la scansione fallisce non blocchiamo, ma logghiamo
+          console.warn('[save-pdf-report] warning scanning dir for duplicate W:', e?.message || String(e));
+        }
       }
-      try { fs.closeSync(fd); } catch {}
-      return res.json({ message: 'PDF salvato con successo!', path: pdfPath });
+    }
+
+    // scrittura atomica: fallisce se il file esiste già
+    fs.open(pdfPath, 'wx', (err, fd) => {
+      if (err) {
+        releaseLock();
+        return res.status(500).json({ message: 'Errore apertura file (wx).', error: err.toString() });
+      }
+      fs.write(fd, pdfBuffer, 0, pdfBuffer.length, null, (err2) => {
+        try { fs.closeSync(fd); } catch {}
+        releaseLock();
+        if (err2) {
+          return res.status(500).json({ message: 'Errore scrivendo il PDF', error: err2.toString() });
+        }
+        return res.json({ message: 'PDF salvato con successo!', path: pdfPath });
+      });
     });
-  });
+  } catch (e) {
+    releaseLock();
+    return res.status(500).json({ message: 'Errore interno salvataggio PDF.', error: String(e) });
+  }
 });
+
 
 app.post('/api/save-excel-report', (req, res) => {
   const { folderPath, excelData, fileName } = req.body;
