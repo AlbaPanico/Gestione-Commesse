@@ -385,7 +385,7 @@ app.get('/api/prossima-bolla', (req, res) => {
   res.json({ numeroBolla: String(bolle.progressivo).padStart(4, '0') });
 });
 
-// Uscita (T): AVANZA + reset auto al cambio giorno + nome file standard
+// Uscita (T): AVANZA (senza reset) + nome file standard
 app.post('/api/avanza-bolla', (req, res) => {
   try { syncProgressivi({ forT: true, forW: false }); } catch {}
 
@@ -393,14 +393,14 @@ app.post('/api/avanza-bolla', (req, res) => {
   let lockFd = null;
 
   try {
-    // Acquisisci lock atomico per evitare doppi avanzamenti concorrenti
+    // Lock atomico: evita doppi avanzamenti concorrenti
     lockFd = fs.openSync(lockPath, 'wx');
 
-    let bolle = getBolleUscita();
-    const oggi = oggiISO();
-    if (bolle.ultimaData !== oggi) { bolle = { progressivo: 1, ultimaData: oggi }; }
-    const progressivo = bolle.progressivo;
-    saveBolleUscita(progressivo + 1, oggi);
+    const bolle = getBolleUscita();
+    const progressivo = bolle.progressivo;              // numero da usare ORA
+    saveBolleUscita(progressivo + 1);                   // prepara il prossimo
+
+    const todayIso = oggiISO();
 
     // Nome file: DDT_<NNNNT>_<Cxxxx[-yy]>_<dd-mm-yyyy>.pdf
     const folderPath = req.body?.folderPath || '';
@@ -410,12 +410,12 @@ app.post('/api/avanza-bolla', (req, res) => {
     const suffissoC = codiceVisivo ? `_${codiceVisivo}` : '';
     const nomeFileSuggerito = `DDT_${String(progressivo).padStart(4,'0')}T${suffissoC}_${oggiStr()}.pdf`;
 
-    const logLine = `[${new Date().toISOString()}] BOLLA generata - Numero: ${String(progressivo).padStart(4, '0')}T, Data: ${oggi}\n`;
+    const logLine = `[${new Date().toISOString()}] BOLLA generata - Numero: ${String(progressivo).padStart(4, '0')}T\n`;
     fs.appendFileSync(path.join(__dirname, 'data', 'bolle.log'), logLine);
 
     const payload = {
       numeroBolla: String(progressivo).padStart(4, '0'),
-      dataTrasporto: oggi,
+      dataTrasporto: todayIso,
       suggestedFileName: nomeFileSuggerito
     };
 
@@ -426,12 +426,10 @@ app.post('/api/avanza-bolla', (req, res) => {
     return res.json(payload);
   } catch (err) {
     if (err && err.code === 'EEXIST') {
-      // Un altro avanzamento è in corso proprio ora
       return res.status(423).json({ message: 'Progressivo in aggiornamento, riprova tra pochi istanti.' });
     }
     return res.status(500).json({ message: 'Errore avanzando progressivo bolla uscita.', error: String(err) });
   } finally {
-    // Safety cleanup in caso di eccezioni
     try { if (lockFd !== null) fs.closeSync(lockFd); } catch {}
     try { if (fs.existsSync(lockPath)) fs.unlinkSync(lockPath); } catch {}
   }
