@@ -128,83 +128,91 @@ async function rigeneraSettimana(week, year) {
 /* -----------------------------------------------------------
    GENERA REPORT ACL --> JSON, AGGIUNGI CONSUMO_KWH SOLO PER ARIZONA B E NON RESETTARE MAI
 ----------------------------------------------------------- */
-async function generaReportDaAclFile(aclFilePath, outputJsonPath, monitorJsonPath, nomeStampanteForza) {
+async function generaReportDaAclFile(aclFilePath, _outputJsonPathIgnored, monitorJsonPath, nomeStampanteForza) {
+  // === 0) Leggi ACL ===
   if (!fs.existsSync(aclFilePath)) {
     console.warn("File ACL non trovato:", aclFilePath);
     return;
   }
-  const content = fs.readFileSync(aclFilePath, "utf8").trim().split(/\r?\n/);
-  if (content.length < 2) {
+  const lines = fs.readFileSync(aclFilePath, "utf8").trim().split(/\r?\n/);
+  if (lines.length < 2) {
     console.warn("File ACL vuoto o senza dati:", aclFilePath);
     return;
   }
-  const headers = content[0].split(";").map(h => h.trim().replace(/^"|"$/g, ""));
+  const headers = lines[0].split(";").map(h => h.trim().replace(/^"|"$/g, ""));
+  const rows = lines.slice(1).map(l => l.split(";").map(f => f.trim().replace(/^"|"$/g, "")));
   const newRecords = [];
-  for (let i = 1; i < content.length; i++) {
-    const row = content[i].split(";").map(f => f.trim().replace(/^"|"$/g, ""));
+  for (const cols of rows) {
     const obj = {};
-    headers.forEach((h, idx) => {
-      obj[h] = row[idx];
-    });
-    // Controlla che almeno uno dei campi principali NON sia vuoto
-    const isEmptyRecord = Object.values(obj).every(value => !value.trim());
-    if (!isEmptyRecord && obj.jobid && obj.jobname) {
+    headers.forEach((h, i) => { obj[h] = cols[i]; });
+    const isEmpty = Object.values(obj).every(v => !String(v || "").trim());
+    if (!isEmpty && (obj.jobid || obj["Job ID"] || obj.documentid) && obj.jobname) {
       newRecords.push(obj);
     }
   }
 
-  // Carica record già presenti
-  let allRecords = [];
-  if (fs.existsSync(outputJsonPath)) {
+  // === 1) Paths & settaggi ===
+  const settingsPathLocal = path.join(__dirname, "data", "stampantiSettings.json");
+  let reportGeneralePath = path.join(__dirname, "data");
+  if (fs.existsSync(settingsPathLocal)) {
     try {
-      const raw = fs.readFileSync(outputJsonPath, 'utf8');
-      allRecords = raw.trim() ? JSON.parse(raw) : [];
-    } catch (err) {
-      allRecords = [];
-    }
+      const s = JSON.parse(fs.readFileSync(settingsPathLocal, "utf8"));
+      if (s.reportGeneralePath && fs.existsSync(s.reportGeneralePath)) {
+        reportGeneralePath = s.reportGeneralePath;
+      }
+    } catch {}
   }
 
-  // Leggi monitorData (per calcolo kWh)
+  const now = new Date();
+  const week = getISOWeek(now);
+  const year = getISOWeekYear(now);
+
+  const weeklyFile = path.join(reportGeneralePath, `Reportgenerali_Arizona_${week}_${year}.json`);
+  if (!fs.existsSync(reportGeneralePath)) fs.mkdirSync(reportGeneralePath, { recursive: true });
+
+  // === 2) Carica file unificato della settimana CORRENTE (append-only) ===
+  let all = [];
+  try {
+    if (fs.existsSync(weeklyFile)) {
+      const raw = fs.readFileSync(weeklyFile, "utf8").trim();
+      all = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(all)) all = [];
+    }
+  } catch { all = []; }
+
+  // === 3) Monitor (per Arizona B) ===
   let monitorData = [];
   if (monitorJsonPath && fs.existsSync(monitorJsonPath)) {
     try {
-      monitorData = JSON.parse(fs.readFileSync(monitorJsonPath, 'utf8'));
+      monitorData = JSON.parse(fs.readFileSync(monitorJsonPath, "utf8")) || [];
       monitorData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    } catch (err) {
-      monitorData = [];
-    }
+    } catch { monitorData = []; }
   }
-
-  console.log("[DEBUG_MONITOR] monitorData length:", monitorData.length, monitorData[0], monitorData[monitorData.length - 1]);
-
-  // Funzione per calcolare consumo SOLO su ARIZONA B (ora bypass, la vera logica è globale)
-  function calcConsumoKwh(r) {
-    const device = String(r["Device"] || r["Dispositivo"] || "").replace(/\s+/g, " ").trim().toUpperCase();
-    if (!device.includes("ARIZONA B")) {
-      
-      return "";
+  const findClosestKwh = (ts) => {
+    if (!monitorData.length) return null;
+    let best = null, min = Infinity;
+    for (const r of monitorData) {
+      const d = Math.abs(new Date(r.timestamp).getTime() - ts);
+      if (d < min) { min = d; best = r.today_kwh; }
     }
-    return "";
-  }
+    return (best !== undefined && best !== null) ? Number(best) : null;
+  };
 
-  // Unisci senza duplicati (chiave: jobid|jobname|printmode)
-  const getKey = r =>
-    (r["jobid"] || r["Job ID"] || r["documentid"] || "") + "|" +
-    (r["jobname"] || "") + "|" +
-    (r["printmode"] || "");
-
-  // helper: numero valido oppure null
+  // === 4) Helpers ===
+  const toMillis = (dateStr, timeStr = "00:00:00") => {
+    if (!dateStr) return NaN;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return new Date(`${dateStr}T${timeStr}`).getTime();
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+      const [d, m, y] = dateStr.split("/");
+      const [hh, mm, ss] = (timeStr || "00:00:00").split(":");
+      return new Date(y, m - 1, d, hh, mm, ss).getTime();
+    }
+    return NaN;
+  };
   const toNum = (v) => {
     const n = Number(v);
     return Number.isFinite(n) ? n : null;
   };
-
-  // helper: scegli il consumo "migliore" senza mai diminuire né azzerare
-  // Regole:
-  // - se entrambi numeri -> max con 3 decimali
-  // - se vecchio è numero e nuovo non lo è (o è 0/blank) -> tieni il vecchio
-  // - se solo il nuovo è numero -> prendi il nuovo (3 decimali)
-  // - altrimenti lascia com'è
   const pickConsumo = (oldVal, newVal) => {
     const a = toNum(oldVal);
     const b = toNum(newVal);
@@ -213,71 +221,81 @@ async function generaReportDaAclFile(aclFilePath, outputJsonPath, monitorJsonPat
     if (b !== null) return Number(b.toFixed(3));
     return (oldVal !== undefined ? oldVal : newVal);
   };
+  const getKey = (r) =>
+    (r["jobid"] || r["Job ID"] || r["documentid"] || "") + "|" +
+    (r["jobname"] || "") + "|" +
+    (r["printmode"] || "") + "|" +
+    (r["dispositivo"] || r["Device"] || "");
 
-  const recordsMap = new Map(allRecords.map(r => [getKey(r), r]));
+  const isArizonaB = (name) => String(name || "").trim().toUpperCase().includes("ARIZONA B");
+  const isArizonaA = (name) => String(name || "").trim().toUpperCase().includes("ARIZONA A");
 
-  newRecords.forEach(r => {
-    // placeholder attuale (ritorna ""), lo manteniamo per non cambiare la struttura
-    r["consumo_kwh"] = calcConsumoKwh(r);
+  // mappa esistente per merge
+  const map = new Map(all.map(r => [getKey(r), r]));
 
+  // === 5) Elabora nuovi record SOLO per la settimana corrente (file corrente) ===
+  for (const r0 of newRecords) {
+    const r = { ...r0 };
+
+    // forza dispositivo
     if (nomeStampanteForza) r["dispositivo"] = nomeStampanteForza;
-    const key = getKey(r);
 
-    // se esiste già una versione "Done" ed il nuovo non è "Done", mantieni l'esistente,
-    // MA senza mai peggiorare il 'consumo_kwh' (quindi niente reset)
-    if (recordsMap.has(key)) {
-      const existing = recordsMap.get(key);
-      const existingIsDone = (existing.result === "Done" || existing.result === "done");
-      const newIsDone = (r.result === "Done");
+    // data/ora job
+    const sd = r.startdate || r["startdate"];
+    const st = r.starttime || r["starttime"] || "00:00:00";
+    const rd = r.readydate  || r["readydate"];
+    const rt = r.readytime  || r["readytime"] || "00:00:00";
+    const tStart = toMillis(sd, st);
+    const tEnd   = toMillis(rd, rt);
 
-      // base merge: unione campi, i valori non vuoti del nuovo r sovrascrivono l'esistente
-      const merged = { ...existing, ...r };
+    // rotta SOLO sul file della settimana corrente: se la data non è di questa settimana → skip
+    let recDate = isNaN(tStart) ? (isNaN(tEnd) ? null : new Date(tEnd)) : new Date(tStart);
+    if (!recDate) recDate = new Date();
+    const recW = getISOWeek(recDate);
+    const recY = getISOWeekYear(recDate);
+    if (recW !== week || recY !== year) {
+      // file delle settimane passate NON deve più essere toccato
+      continue;
+    }
 
-      // anti-reset & monotonia: ricalcola il campo con la regola pickConsumo
-      merged["consumo_kwh"] = pickConsumo(existing["consumo_kwh"], r["consumo_kwh"]);
-
-      // Se l'esistente era "Done" e il nuovo non lo è, tieni comunque 'result' e altri flag dell'esistente
-      if (existingIsDone && !newIsDone) {
-        merged.result = existing.result;
+    // calcolo consumo per copia SOLO Arizona B se possibile (altrimenti lascio vuoto/new)
+    let newConsumo = r["consumo_kwh"];
+    if (isArizonaB(r["dispositivo"])) {
+      const k1 = (!isNaN(tStart)) ? findClosestKwh(tStart) : null;
+      const k2 = (!isNaN(tEnd))   ? findClosestKwh(tEnd)   : null;
+      if (k1 !== null && k2 !== null && k2 >= k1) {
+        const kwhTot = k2 - k1;
+        const copie = Number(r.noffinishedsets || r.printsdone || 0);
+        newConsumo = (copie > 0) ? Number((kwhTot / copie).toFixed(3)) : Number(kwhTot.toFixed(3));
       }
+    } else if (isArizonaA(r["dispositivo"])) {
+      // coerente con la tua logica: per A energia vuota
+      newConsumo = "";
+    }
 
-      recordsMap.set(key, merged);
+    // dedupe/merge
+    const key = getKey(r);
+    if (map.has(key)) {
+      const ex = map.get(key);
+      const merged = { ...ex, ...r };
+      merged["consumo_kwh"] = pickConsumo(ex["consumo_kwh"], newConsumo);
+      // preserva "Done" se l'esistente è Done e il nuovo non lo è
+      const exDone = (String(ex.result || "").toLowerCase() === "done");
+      const newDone = (String(r.result || "").toLowerCase() === "done");
+      if (exDone && !newDone) merged.result = ex.result;
+      map.set(key, merged);
     } else {
-      // primo inserimento: se consumo è numerico, normalizza a numero con 3 decimali
-      const n = toNum(r["consumo_kwh"]);
+      const n = toNum(newConsumo);
       if (n !== null) r["consumo_kwh"] = Number(n.toFixed(3));
-      recordsMap.set(key, r);
-    }
-  });
-
-  // NIENTE ricalcoli post-merge che possano abbassare o azzerare il consumo_kwh
-
-  // Salva l’array aggiornato
-  const outputArr = Array.from(recordsMap.values());
-  fs.writeFileSync(outputJsonPath, JSON.stringify(outputArr, null, 2));
-  console.log(`✅ Report JSON aggiornato: ${outputJsonPath} (${outputArr.length} righe, consumo_kwh calcolato solo su Arizona B, campo dispositivo forzato: ${nomeStampanteForza})`);
-
-  // 👉 Mantieni la tua generazione generale
-  if (
-    outputJsonPath.endsWith('Reportgenerali_Arizona A.json') ||
-    outputJsonPath.endsWith('Reportgenerali_Arizona B.json')
-  ) {
-    try {
-      generaReportGenerali();
-    } catch (e) {
-      console.warn("⚠️ generaReportGenerali ha dato errore (non blocco):", e?.message || e);
+      else if (newConsumo === "" || newConsumo === 0) r["consumo_kwh"] = newConsumo;
+      map.set(key, r);
     }
   }
 
-  // 👉 NUOVO: Rigenera SUBITO il settimanale corrente (pari passo)
-  try {
-    const now = new Date();
-    const w = getISOWeek(now);
-    const y = now.getFullYear();
-    await rigeneraSettimana(w, y);
-  } catch (e) {
-    console.warn("⚠️ rigeneraSettimana fallita (non blocco):", e?.message || e);
-  }
+  // === 6) Scrivi SOLO il file settimanale unificato corrente ===
+  const out = Array.from(map.values());
+  fs.writeFileSync(weeklyFile, JSON.stringify(out, null, 2), "utf8");
+  console.log(`✅ Aggiornato ${path.basename(weeklyFile)} — righe: ${out.length}`);
 }
 
 // Per ogni stampante: scarica l'ULTIMO ACL e genera il suo report
