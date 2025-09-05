@@ -605,6 +605,24 @@ if (lname.includes('ritiro'))           { form.getTextField(name).setText(dataTr
 
     const pdfData = await pdfDoc.save();
 
+    // Log obiettivo file/numero
+    console.log(`[generaBollaEntrata] target=${outPath} numeroDoc=${numeroDoc}`);
+
+    // Guard non bloccante: se il file esiste già, non avanzare e non riscrivere
+    if (fs.existsSync(outPath)) {
+      console.log('[generaBollaEntrata] skip: DDT W già presente (pre-check).');
+      return {
+        ok: true,
+        path: outPath,
+        fileName: nomeFile,
+        numeroDoc,
+        dataDocIT,
+        codiceVisivo,
+        materialiPath,
+        note: 'DDT W già presente (pre-check): evitata duplicazione'
+      };
+    }
+
     // Scrittura atomica: solo una chiamata può creare il file
     try {
       const fd = fs.openSync(outPath, 'wx'); // fallisce se il file esiste già
@@ -615,7 +633,12 @@ if (lname.includes('ritiro'))           { form.getTextField(name).setText(dataTr
       }
 
       // Avanza il progressivo SOLO se abbiamo scritto davvero il file
-      if (advance) saveBolleEntrata(progressivoCorrente + 1);
+      if (advance) {
+        saveBolleEntrata(progressivoCorrente + 1);
+        console.log(`[generaBollaEntrata] creato ${nomeFile} e avanzato progressivo a ${progressivoCorrente + 1}`);
+      } else {
+        console.log(`[generaBollaEntrata] creato ${nomeFile} senza avanzare progressivo (advance=false)`);
+      }
 
       return {
         ok: true,
@@ -629,6 +652,7 @@ if (lname.includes('ritiro'))           { form.getTextField(name).setText(dataTr
     } catch (err) {
       if (err && err.code === 'EEXIST') {
         // File già creato da un’altra chiamata concorrente: non avanzare
+        console.log('[generaBollaEntrata] race: file già creato da un’altra chiamata. Skip avanzamento.');
         return {
           ok: true,
           path: outPath,
@@ -637,9 +661,10 @@ if (lname.includes('ritiro'))           { form.getTextField(name).setText(dataTr
           dataDocIT,
           codiceVisivo,
           materialiPath,
-          note: 'DDT W già presente: evitata duplicazione'
+          note: 'DDT W già presente: evitata duplicazione (race)'
         };
       }
+      console.warn('[generaBollaEntrata] errore scrittura atomica:', err?.message || String(err));
       return { ok:false, error: err?.message || String(err) };
     }
   } catch (e) {
@@ -679,42 +704,47 @@ async function creaBollaEntrataConExcel(folderPath, advance = true, opts = {}) {
     const r = await generaBollaEntrata({ folderPath, advance });
     if (!r || !r.ok) return r || { ok: false, msg: "generaBollaEntrata ha restituito esito negativo" };
 
-    // Aggiorna Excel se impostato
+    // Aggiorna Excel se impostato (salta se il PDF era già presente)
     try {
-      const settings = _readJsonSafe(settingsFilePath);
-      const reportDdtPath = settings?.reportDdtPath;
-      if (reportDdtPath && fs.existsSync(reportDdtPath)) {
-        const datiReport = _readJsonSafe(path.join(folderPath, "report.json"));
-        const prezzoVendita = (() => {
-          const v = datiReport?.prezzoVendita;
-          const n = Number(String(v).replace(",", "."));
-          return Number.isFinite(n) ? n : 0;
-        })();
+      // Se la generazione ha segnalato duplicazione, non rigenerare l'Excel
+      if (r && typeof r.note === 'string' && r.note.toLowerCase().includes('ddt w già presente')) {
+        console.log('[creaBollaEntrataConExcel] skip Excel: DDT W già presente.');
+      } else {
+        const settings = _readJsonSafe(settingsFilePath);
+        const reportDdtPath = settings?.reportDdtPath;
+        if (reportDdtPath && fs.existsSync(reportDdtPath)) {
+          const datiReport = _readJsonSafe(path.join(folderPath, "report.json"));
+          const prezzoVendita = (() => {
+            const v = datiReport?.prezzoVendita;
+            const n = Number(String(v).replace(",", "."));
+            return Number.isFinite(n) ? n : 0;
+          })();
 
-        const payload = {
-          reportDdtPath,
-          datiDdt: {
-            dataDdt: _oggiStrSlash(),
-            numeroDdt: r.numeroDoc,
-            codiceCommessa: r.codiceVisivo || "",
-            quantita: (datiReport?.quantita ?? ""),
-            colli: getColliDaReportSync(folderPath, ""),
-            nsDdt: "",           // lasciamo vuoto se non c’è T
-            del: "",
-            percorsoPdf: r.materialiPath && r.fileName ? path.join(r.materialiPath, r.fileName) : "",
-            folderPath,
-            descrizione: `Assembraggio ${path.basename(folderPath)}`,
-            nomeCommessa: path.basename(folderPath),
-            prezzoVendita,
-            ...(opts?.extra || {})
-          }
-        };
+          const payload = {
+            reportDdtPath,
+            datiDdt: {
+              dataDdt: _oggiStrSlash(),
+              numeroDdt: r.numeroDoc,
+              codiceCommessa: r.codiceVisivo || "",
+              quantita: (datiReport?.quantita ?? ""),
+              colli: getColliDaReportSync(folderPath, ""),
+              nsDdt: "",           // lasciamo vuoto se non c’è T
+              del: "",
+              percorsoPdf: r.materialiPath && r.fileName ? path.join(r.materialiPath, r.fileName) : "",
+              folderPath,
+              descrizione: `Assembraggio ${path.basename(folderPath)}`,
+              nomeCommessa: path.basename(folderPath),
+              prezzoVendita,
+              ...(opts?.extra || {})
+            }
+          };
 
-        await fetch("http://127.0.0.1:3001/api/genera-ddt-excel", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        }).catch(() => {});
+          await fetch("http://127.0.0.1:3001/api/genera-ddt-excel", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          }).catch(() => {});
+        }
       }
     } catch (errExcel) {
       console.warn("[creaBollaEntrataConExcel] Excel warn:", errExcel?.message || String(errExcel));
