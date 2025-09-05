@@ -926,3 +926,36 @@
 [2025-09-05 13:31:13] DEBUG dedupe: nessuna riga esistente, scrivo in nuova riga 7
 [2025-09-05 13:31:13] DEBUG prezzoVendita ricevuto='57.13' -> usato=57.13
 [2025-09-05 13:31:13] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 7) | NomeCommessa='expo cioccolato 12 gusti' | Codice='C4945' | PrezzoVendita=57.13 | PDF_IN='DDT_0080W_C4945_05-09-2025.pdf'
+[2025-09-05 13:34:43] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita']
+[2025-09-05 13:34:43] DEBUG nomeCommessa='L'OREAL_REGLETTE A “L” EVENTO SKIN P10-P12 2025 [24 CM5 PZ]_P_C4959' descrizione='Assembraggio L'OREAL_REGLETTE A “L” EVENTO SKIN P10-P12 2025 [24 CM5 PZ]_P_C4959'
+[2025-09-05 13:34:43] DEBUG estrazione: sorgente='Assembraggio L'OREAL_REGLETTE A “L” EVENTO SKIN P10-P12 2025 [24 CM5 PZ]_P_C4959' -> estratto='REGLETTE A “L” EVENTO SKIN P10-P12 2025 [24 CM5 PZ]'
+[2025-09-05 13:34:43] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\L'OREAL_REGLETTE A “L” EVENTO SKIN P10-P12 2025 [24 CM5 PZ]_P_C4959\MATERIALI' esiste=True
+[2025-09-05 13:34:43] DEBUG codice_commessa_norm='C4959' (raw='C4959')
+[2025-09-05 13:34:43] DEBUG MATERIALI contiene (2 file): DDT_0081W_C4959_05-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-05 13:34:43] DEBUG match regex ENTRATA: DDT_0081W_C4959_05-09-2025.pdf
+[2025-09-05 13:34:43] DEBUG MATERIALI contiene (2 file): DDT_0081W_C4959_05-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-05 13:34:43] DEBUG dedupe: nessuna riga esistente, scrivo in nuova riga 8
+[2025-09-05 13:34:43] DEBUG prezzoVendita ricevuto='0' -> usato=0.0
+[2025-09-05 13:34:43] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 8) | NomeCommessa='REGLETTE A “L” EVENTO SKIN P10-P12 2025 [24 CM5 PZ]' | Codice='C4959' | PrezzoVendita=0.0 | PDF_IN='DDT_0081W_C4959_05-09-2025.pdf'
+[2025-09-05 13:34:44] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita', 'reportDdtPath']
+[2025-09-05 13:34:44] DEBUG nomeCommessa='L'OREAL_REGLETTE A “L” EVENTO SKIN P10-P12 2025 [24 CM5 PZ]_P_C4959' descrizione='Assembraggio L'OREAL_REGLETTE A “L” EVENTO SKIN P10-P12 2025 [24 CM5 PZ]_P_C4959'
+[2025-09-05 13:34:44] DEBUG estrazione: sorgente='Assembraggio L'OREAL_REGLETTE A “L” EVENTO SKIN P10-P12 2025 [24 CM5 PZ]_P_C4959' -> estratto='REGLETTE A “L” EVENTO SKIN P10-P12 2025 [24 CM5 PZ]'
+[2025-09-05 13:34:44] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\L'OREAL_REGLETTE A “L” EVENTO SKIN P10-P12 2025 [24 CM5 PZ]_P_C4959\MATERIALI' esiste=True
+[2025-09-05 13:34:44] DEBUG codice_commessa_norm='C4959' (raw='C4959')
+[2025-09-05 13:34:44] DEBUG MATERIALI contiene (2 file): DDT_0081W_C4959_05-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-05 13:34:44] DEBUG match regex ENTRATA: DDT_0081W_C4959_05-09-2025.pdf
+[2025-09-05 13:34:44] DEBUG MATERIALI contiene (2 file): DDT_0081W_C4959_05-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-05 13:34:44] DEBUG dedupe: sovrascrivo riga esistente 8 per DDT 0081W
+[2025-09-05 13:34:44] DEBUG prezzoVendita ricevuto='0' -> usato=0.0
+[2025-09-05 13:34:44] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 8) | NomeCommessa='REGLETTE A “L” EVENTO SKIN P10-P12 2025 [24 CM5 PZ]' | Codice='C4959' | PrezzoVendita=0.0 | PDF_IN='DDT_0081W_C4959_05-09-2025.pdf'
+[2025-09-05 13:34:45] DEBUG DATI keys=['codiceCommessa', 'quantita', 'folderPath', 'colli', 'oreLavorazione', 'nomeCommessa', 'prezzoVendita', 'descrizione']
+[2025-09-05 13:34:45] DEBUG nomeCommessa='L'OREAL_REGLETTE A “L” EVENTO SKIN P10-P12 2025 [24 CM5 PZ]_P_C4959' descrizione='Assembraggio L'OREAL_REGLETTE A “L” EVENTO SKIN P10-P12 2025 [24 CM5 PZ]_P_C4959'
+[2025-09-05 13:34:45] DEBUG estrazione: sorgente='Assembraggio L'OREAL_REGLETTE A “L” EVENTO SKIN P10-P12 2025 [24 CM5 PZ]_P_C4959' -> estratto='REGLETTE A “L” EVENTO SKIN P10-P12 2025 [24 CM5 PZ]'
+[2025-09-05 13:34:45] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\L'OREAL_REGLETTE A “L” EVENTO SKIN P10-P12 2025 [24 CM5 PZ]_P_C4959\MATERIALI' esiste=True
+[2025-09-05 13:34:45] DEBUG codice_commessa_norm='C4959' (raw='C4959')
+[2025-09-05 13:34:45] DEBUG MATERIALI contiene (2 file): DDT_0081W_C4959_05-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-05 13:34:45] DEBUG match regex ENTRATA: DDT_0081W_C4959_05-09-2025.pdf
+[2025-09-05 13:34:45] DEBUG MATERIALI contiene (2 file): DDT_0081W_C4959_05-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-05 13:34:45] DEBUG dedupe: sovrascrivo riga esistente 8 per DDT 0081W
+[2025-09-05 13:34:45] DEBUG prezzoVendita ricevuto='' -> usato=0.0
+[2025-09-05 13:34:45] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 8) | NomeCommessa='REGLETTE A “L” EVENTO SKIN P10-P12 2025 [24 CM5 PZ]' | Codice='C4959' | PrezzoVendita=0.0 | PDF_IN='DDT_0081W_C4959_05-09-2025.pdf'
