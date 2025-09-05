@@ -991,3 +991,36 @@
 [2025-09-05 13:38:01] DEBUG dedupe: sovrascrivo riga esistente 9 per DDT 0082W
 [2025-09-05 13:38:01] DEBUG prezzoVendita ricevuto='7.7' -> usato=7.7
 [2025-09-05 13:38:01] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 9) | NomeCommessa='reglette a L skin' | Codice='C4985' | PrezzoVendita=7.7 | PDF_IN='DDT_0082W_C4985_05-09-2025.pdf'
+[2025-09-05 13:40:23] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita']
+[2025-09-05 13:40:23] DEBUG nomeCommessa='L'OREAL_2° aggiornamento couvette BS 2025_P_C4900' descrizione='Assembraggio L'OREAL_2° aggiornamento couvette BS 2025_P_C4900'
+[2025-09-05 13:40:23] DEBUG estrazione: sorgente='Assembraggio L'OREAL_2° aggiornamento couvette BS 2025_P_C4900' -> estratto='2° aggiornamento couvette BS 2025'
+[2025-09-05 13:40:23] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\L'OREAL_2° aggiornamento couvette BS 2025_P_C4900\MATERIALI' esiste=True
+[2025-09-05 13:40:23] DEBUG codice_commessa_norm='C4900' (raw='C4900')
+[2025-09-05 13:40:23] DEBUG MATERIALI contiene (3 file): DDT_0083W_C4900_05-09-2025.pdf, DISTINTA com. 4900.xlsx, DistintaMateriali_L'OREAL_2° aggiornamento couvette BS 2025_P_C4900.xlsx
+[2025-09-05 13:40:23] DEBUG match regex ENTRATA: DDT_0083W_C4900_05-09-2025.pdf
+[2025-09-05 13:40:23] DEBUG MATERIALI contiene (3 file): DDT_0083W_C4900_05-09-2025.pdf, DISTINTA com. 4900.xlsx, DistintaMateriali_L'OREAL_2° aggiornamento couvette BS 2025_P_C4900.xlsx
+[2025-09-05 13:40:23] DEBUG dedupe: nessuna riga esistente, scrivo in nuova riga 10
+[2025-09-05 13:40:23] DEBUG prezzoVendita ricevuto='3' -> usato=3.0
+[2025-09-05 13:40:23] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 10) | NomeCommessa='2° aggiornamento couvette BS 2025' | Codice='C4900' | PrezzoVendita=3.0 | PDF_IN='DDT_0083W_C4900_05-09-2025.pdf'
+[2025-09-05 13:40:25] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita', 'reportDdtPath']
+[2025-09-05 13:40:25] DEBUG nomeCommessa='L'OREAL_2° aggiornamento couvette BS 2025_P_C4900' descrizione='Assembraggio L'OREAL_2° aggiornamento couvette BS 2025_P_C4900'
+[2025-09-05 13:40:25] DEBUG estrazione: sorgente='Assembraggio L'OREAL_2° aggiornamento couvette BS 2025_P_C4900' -> estratto='2° aggiornamento couvette BS 2025'
+[2025-09-05 13:40:25] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\L'OREAL_2° aggiornamento couvette BS 2025_P_C4900\MATERIALI' esiste=True
+[2025-09-05 13:40:25] DEBUG codice_commessa_norm='C4900' (raw='C4900')
+[2025-09-05 13:40:25] DEBUG MATERIALI contiene (3 file): DDT_0083W_C4900_05-09-2025.pdf, DISTINTA com. 4900.xlsx, DistintaMateriali_L'OREAL_2° aggiornamento couvette BS 2025_P_C4900.xlsx
+[2025-09-05 13:40:25] DEBUG match regex ENTRATA: DDT_0083W_C4900_05-09-2025.pdf
+[2025-09-05 13:40:25] DEBUG MATERIALI contiene (3 file): DDT_0083W_C4900_05-09-2025.pdf, DISTINTA com. 4900.xlsx, DistintaMateriali_L'OREAL_2° aggiornamento couvette BS 2025_P_C4900.xlsx
+[2025-09-05 13:40:25] DEBUG dedupe: sovrascrivo riga esistente 10 per DDT 0083W
+[2025-09-05 13:40:25] DEBUG prezzoVendita ricevuto='3' -> usato=3.0
+[2025-09-05 13:40:25] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 10) | NomeCommessa='2° aggiornamento couvette BS 2025' | Codice='C4900' | PrezzoVendita=3.0 | PDF_IN='DDT_0083W_C4900_05-09-2025.pdf'
+[2025-09-05 13:40:25] DEBUG DATI keys=['codiceCommessa', 'quantita', 'folderPath', 'colli', 'oreLavorazione', 'nomeCommessa', 'prezzoVendita', 'descrizione']
+[2025-09-05 13:40:25] DEBUG nomeCommessa='L'OREAL_2° aggiornamento couvette BS 2025_P_C4900' descrizione='Assembraggio L'OREAL_2° aggiornamento couvette BS 2025_P_C4900'
+[2025-09-05 13:40:25] DEBUG estrazione: sorgente='Assembraggio L'OREAL_2° aggiornamento couvette BS 2025_P_C4900' -> estratto='2° aggiornamento couvette BS 2025'
+[2025-09-05 13:40:25] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\L'OREAL_2° aggiornamento couvette BS 2025_P_C4900\MATERIALI' esiste=True
+[2025-09-05 13:40:25] DEBUG codice_commessa_norm='C4900' (raw='C4900')
+[2025-09-05 13:40:25] DEBUG MATERIALI contiene (3 file): DDT_0083W_C4900_05-09-2025.pdf, DISTINTA com. 4900.xlsx, DistintaMateriali_L'OREAL_2° aggiornamento couvette BS 2025_P_C4900.xlsx
+[2025-09-05 13:40:25] DEBUG match regex ENTRATA: DDT_0083W_C4900_05-09-2025.pdf
+[2025-09-05 13:40:25] DEBUG MATERIALI contiene (3 file): DDT_0083W_C4900_05-09-2025.pdf, DISTINTA com. 4900.xlsx, DistintaMateriali_L'OREAL_2° aggiornamento couvette BS 2025_P_C4900.xlsx
+[2025-09-05 13:40:25] DEBUG dedupe: sovrascrivo riga esistente 10 per DDT 0083W
+[2025-09-05 13:40:25] DEBUG prezzoVendita ricevuto='3' -> usato=3.0
+[2025-09-05 13:40:25] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 10) | NomeCommessa='2° aggiornamento couvette BS 2025' | Codice='C4900' | PrezzoVendita=3.0 | PDF_IN='DDT_0083W_C4900_05-09-2025.pdf'
