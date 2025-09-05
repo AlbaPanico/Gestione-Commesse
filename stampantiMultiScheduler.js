@@ -193,39 +193,64 @@ async function generaReportDaAclFile(aclFilePath, outputJsonPath, monitorJsonPat
     (r["jobname"] || "") + "|" +
     (r["printmode"] || "");
 
+  // helper: numero valido oppure null
+  const toNum = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  // helper: scegli il consumo "migliore" senza mai diminuire né azzerare
+  // Regole:
+  // - se entrambi numeri -> max con 3 decimali
+  // - se vecchio è numero e nuovo non lo è (o è 0/blank) -> tieni il vecchio
+  // - se solo il nuovo è numero -> prendi il nuovo (3 decimali)
+  // - altrimenti lascia com'è
+  const pickConsumo = (oldVal, newVal) => {
+    const a = toNum(oldVal);
+    const b = toNum(newVal);
+    if (a !== null && b !== null) return Number(Math.max(a, b).toFixed(3));
+    if (a !== null && (b === null || b === 0)) return a;
+    if (b !== null) return Number(b.toFixed(3));
+    return (oldVal !== undefined ? oldVal : newVal);
+  };
+
   const recordsMap = new Map(allRecords.map(r => [getKey(r), r]));
+
   newRecords.forEach(r => {
-    r["consumo_kwh"] = calcConsumoKwh(r); // placeholder: log/skip
-    
+    // placeholder attuale (ritorna ""), lo manteniamo per non cambiare la struttura
+    r["consumo_kwh"] = calcConsumoKwh(r);
+
     if (nomeStampanteForza) r["dispositivo"] = nomeStampanteForza;
     const key = getKey(r);
 
-    // Se esiste già una versione "Done", non sovrascrivere con una incompleta
+    // se esiste già una versione "Done" ed il nuovo non è "Done", mantieni l'esistente,
+    // MA senza mai peggiorare il 'consumo_kwh' (quindi niente reset)
     if (recordsMap.has(key)) {
       const existing = recordsMap.get(key);
-      if (
-        (existing.result === "Done" || existing.result === "done") &&
-        (!r.result || r.result !== "Done")
-      ) {
-        return; // tengo la "Done"
+      const existingIsDone = (existing.result === "Done" || existing.result === "done");
+      const newIsDone = (r.result === "Done");
+
+      // base merge: unione campi, i valori non vuoti del nuovo r sovrascrivono l'esistente
+      const merged = { ...existing, ...r };
+
+      // anti-reset & monotonia: ricalcola il campo con la regola pickConsumo
+      merged["consumo_kwh"] = pickConsumo(existing["consumo_kwh"], r["consumo_kwh"]);
+
+      // Se l'esistente era "Done" e il nuovo non lo è, tieni comunque 'result' e altri flag dell'esistente
+      if (existingIsDone && !newIsDone) {
+        merged.result = existing.result;
       }
+
+      recordsMap.set(key, merged);
+    } else {
+      // primo inserimento: se consumo è numerico, normalizza a numero con 3 decimali
+      const n = toNum(r["consumo_kwh"]);
+      if (n !== null) r["consumo_kwh"] = Number(n.toFixed(3));
+      recordsMap.set(key, r);
     }
-    recordsMap.set(key, r);
   });
 
-  // Ricalcola consumi dove mancano (retry su TUTTE) - ancora bypass per debug
-  recordsMap.forEach((r, k) => {
-    if (
-      r["dispositivo"] &&
-      r["dispositivo"].toUpperCase().includes("ARIZONA B") &&
-      (!r["consumo_kwh"] || r["consumo_kwh"] === "" || r["consumo_kwh"] === 0)
-    ) {
-      const nuovoConsumo = calcConsumoKwh(r);
-      if (nuovoConsumo !== "") {
-        r["consumo_kwh"] = nuovoConsumo;
-      }
-    }
-  });
+  // NIENTE ricalcoli post-merge che possano abbassare o azzerare il consumo_kwh
 
   // Salva l’array aggiornato
   const outputArr = Array.from(recordsMap.values());
