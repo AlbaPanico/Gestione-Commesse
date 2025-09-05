@@ -474,7 +474,7 @@ app.post('/api/avanza-bolla-entrata', (req, res) => {
   }
 });
 
-// --- SYNC progressivi dai PDF esistenti (T = solo oggi, W = globale) ----------
+// --- SYNC progressivi dai PDF esistenti (T e W ENTRAMBI globali) --------------
 function syncProgressivi({ forT = true, forW = true } = {}) {
   try {
     if (!fs.existsSync(settingsFilePath)) return;
@@ -486,13 +486,8 @@ function syncProgressivi({ forT = true, forW = true } = {}) {
     const entries = fs.readdirSync(baseFolder, { withFileTypes: true });
     let maxT = 0, maxW = 0;
 
-    const todayDash = oggiStr();               // dd-mm-yyyy
-    const todayUnd  = todayDash.replace(/-/g, '_');
-
-    const patT = [
-      new RegExp(`^DDT_(\\d{4})T_.*_${todayDash}\\.pdf$`, 'i'),
-      new RegExp(`^DDT_(\\d{4})T_.*_${todayUnd}\\.pdf$`,  'i'),
-    ];
+    // pattern GENERICI (qualsiasi data)
+    const patT = [/^DDT_(\d{4})T_.*\.pdf$/i];
     const patW = [
       /^DDT_(\d{4})W_.*_(\d{2})-(\d{2})-(\d{4})\.pdf$/i,
       /^DDT_(\d{4})W_.*_(\d{2})_(\d{2})_(\d{4})\.pdf$/i,
@@ -520,12 +515,12 @@ function syncProgressivi({ forT = true, forW = true } = {}) {
     }
 
     if (forT) {
-      // prossimo T = max odierno + 1, con reset quotidiano
+      // prossimo T = max GLOBALE + 1 (nessun reset)
       const nextT = (maxT || 0) + 1;
-      saveBolleUscita(nextT, oggiISO());
+      saveBolleUscita(nextT);
     }
     if (forW) {
-      // prossimo W = max globale + 1 (senza reset)
+      // prossimo W = max globale + 1 (già senza reset)
       const nextW = (maxW || 0) + 1;
       saveBolleEntrata(nextW);
     }
