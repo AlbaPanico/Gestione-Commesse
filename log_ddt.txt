@@ -1132,3 +1132,37 @@
 [2025-09-05 14:36:14] DEBUG dedupe: sovrascrivo riga esistente 12 per DDT 0086W
 [2025-09-05 14:36:14] DEBUG prezzoVendita ricevuto='73' -> usato=73.0
 [2025-09-05 14:36:14] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 12) | NomeCommessa='barretta luminosa 58 cm' | Codice='C4941' | PrezzoVendita=73.0 | PDF_IN='DDT_0086W_C4941_05-09-2025.pdf'
+[2025-09-05 14:38:12] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita', 'reportDdtPath']
+[2025-09-05 14:38:12] DEBUG nomeCommessa='TOM FORD_barretta luminosa 78 cm_P_C4942' descrizione='Assembraggio TOM FORD_barretta luminosa 78 cm_P_C4942'
+[2025-09-05 14:38:12] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita']
+[2025-09-05 14:38:12] DEBUG nomeCommessa='TOM FORD_barretta luminosa 78 cm_P_C4942' descrizione='Assembraggio TOM FORD_barretta luminosa 78 cm_P_C4942'
+[2025-09-05 14:38:12] DEBUG estrazione: sorgente='Assembraggio TOM FORD_barretta luminosa 78 cm_P_C4942' -> estratto='barretta luminosa 78 cm'
+[2025-09-05 14:38:12] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\TOM FORD_barretta luminosa 78 cm_P_C4942\MATERIALI' esiste=True
+[2025-09-05 14:38:12] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\TOM FORD_barretta luminosa 78 cm_P_C4942\MATERIALI' esiste=True
+[2025-09-05 14:38:12] DEBUG codice_commessa_norm='C4942' (raw='C4942')
+[2025-09-05 14:38:12] DEBUG codice_commessa_norm='C4942' (raw='C4942')
+[2025-09-05 14:38:12] DEBUG MATERIALI contiene (4 file): DDT_0035T_C4942_26-08-2025.pdf, DDT_0087W_C4942_05-09-2025.pdf, DISTINTA com. 4942.xlsx, DistintaMateriali_TOM FORD_barretta luminosa 78 cm_P_C4942.xlsx
+[2025-09-05 14:38:12] DEBUG MATERIALI contiene (4 file): DDT_0035T_C4942_26-08-2025.pdf, DDT_0087W_C4942_05-09-2025.pdf, DISTINTA com. 4942.xlsx, DistintaMateriali_TOM FORD_barretta luminosa 78 cm_P_C4942.xlsx
+[2025-09-05 14:38:12] DEBUG match regex ENTRATA: DDT_0087W_C4942_05-09-2025.pdf
+[2025-09-05 14:38:12] DEBUG match regex ENTRATA: DDT_0087W_C4942_05-09-2025.pdf
+[2025-09-05 14:38:12] DEBUG MATERIALI contiene (4 file): DDT_0035T_C4942_26-08-2025.pdf, DDT_0087W_C4942_05-09-2025.pdf, DISTINTA com. 4942.xlsx, DistintaMateriali_TOM FORD_barretta luminosa 78 cm_P_C4942.xlsx
+[2025-09-05 14:38:12] DEBUG MATERIALI contiene (4 file): DDT_0035T_C4942_26-08-2025.pdf, DDT_0087W_C4942_05-09-2025.pdf, DISTINTA com. 4942.xlsx, DistintaMateriali_TOM FORD_barretta luminosa 78 cm_P_C4942.xlsx
+[2025-09-05 14:38:12] DEBUG match regex USCITA: DDT_0035T_C4942_26-08-2025.pdf
+[2025-09-05 14:38:12] DEBUG dedupe: nessuna riga esistente, scrivo in nuova riga 13
+[2025-09-05 14:38:12] DEBUG prezzoVendita ricevuto='91' -> usato=91.0
+[2025-09-05 14:38:12] DEBUG dedupe: nessuna riga esistente, scrivo in nuova riga 13
+[2025-09-05 14:38:12] DEBUG prezzoVendita ricevuto='91' -> usato=91.0
+[2025-09-05 14:38:12] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 13) | NomeCommessa='barretta luminosa 78 cm' | Codice='C4942' | PrezzoVendita=91.0 | PDF_IN='DDT_0087W_C4942_05-09-2025.pdf'
+[2025-09-05 14:38:12] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 13) | NomeCommessa='barretta luminosa 78 cm' | Codice='C4942' | PrezzoVendita=91.0 | PDF_IN='DDT_0087W_C4942_05-09-2025.pdf'
+[2025-09-05 14:38:12] DEBUG DATI keys=['codiceCommessa', 'quantita', 'folderPath', 'colli', 'oreLavorazione', 'nomeCommessa', 'prezzoVendita', 'descrizione']
+[2025-09-05 14:38:12] DEBUG nomeCommessa='TOM FORD_barretta luminosa 78 cm_P_C4942' descrizione='Assembraggio TOM FORD_barretta luminosa 78 cm_P_C4942'
+[2025-09-05 14:38:12] DEBUG estrazione: sorgente='Assembraggio TOM FORD_barretta luminosa 78 cm_P_C4942' -> estratto='barretta luminosa 78 cm'
+[2025-09-05 14:38:12] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\TOM FORD_barretta luminosa 78 cm_P_C4942\MATERIALI' esiste=True
+[2025-09-05 14:38:12] DEBUG codice_commessa_norm='C4942' (raw='C4942')
+[2025-09-05 14:38:12] DEBUG MATERIALI contiene (4 file): DDT_0035T_C4942_26-08-2025.pdf, DDT_0087W_C4942_05-09-2025.pdf, DISTINTA com. 4942.xlsx, DistintaMateriali_TOM FORD_barretta luminosa 78 cm_P_C4942.xlsx
+[2025-09-05 14:38:12] DEBUG match regex ENTRATA: DDT_0087W_C4942_05-09-2025.pdf
+[2025-09-05 14:38:12] DEBUG MATERIALI contiene (4 file): DDT_0035T_C4942_26-08-2025.pdf, DDT_0087W_C4942_05-09-2025.pdf, DISTINTA com. 4942.xlsx, DistintaMateriali_TOM FORD_barretta luminosa 78 cm_P_C4942.xlsx
+[2025-09-05 14:38:12] DEBUG match regex USCITA: DDT_0035T_C4942_26-08-2025.pdf
+[2025-09-05 14:38:12] DEBUG dedupe: sovrascrivo riga esistente 13 per DDT 0087W
+[2025-09-05 14:38:12] DEBUG prezzoVendita ricevuto='91' -> usato=91.0
+[2025-09-05 14:38:12] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 13) | NomeCommessa='barretta luminosa 78 cm' | Codice='C4942' | PrezzoVendita=91.0 | PDF_IN='DDT_0087W_C4942_05-09-2025.pdf'
