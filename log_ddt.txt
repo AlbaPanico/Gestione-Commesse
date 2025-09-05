@@ -1084,3 +1084,15 @@
 [2025-09-05 13:54:02] DEBUG dedupe: sovrascrivo riga esistente 10 per DDT 0084W
 [2025-09-05 13:54:02] DEBUG prezzoVendita ricevuto='3' -> usato=3.0
 [2025-09-05 13:54:02] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 10) | NomeCommessa='2° aggiornamento couvette BS 2025' | Codice='C4900' | PrezzoVendita=3.0 | PDF_IN='DDT_0084W_C4900_05-09-2025.pdf'
+[2025-09-05 14:00:13] DEBUG DATI keys=['reportDdtPath', 'dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'oreLavorazione', 'costoPz', 'costoTot', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita']
+[2025-09-05 14:00:13] DEBUG nomeCommessa='L'OREAL_2° aggiornamento couvette BS 2025_P_C4900' descrizione='Assembraggio L'OREAL_2° aggiornamento couvette BS 2025_P_C4900'
+[2025-09-05 14:00:13] DEBUG estrazione: sorgente='Assembraggio L'OREAL_2° aggiornamento couvette BS 2025_P_C4900' -> estratto='2° aggiornamento couvette BS 2025'
+[2025-09-05 14:00:13] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\L'OREAL_2° aggiornamento couvette BS 2025_P_C4900\MATERIALI' esiste=True
+[2025-09-05 14:00:13] DEBUG codice_commessa_norm='C4900' (raw='C4900')
+[2025-09-05 14:00:13] DEBUG MATERIALI contiene (4 file): DDT_0038T_C4900_05-09-2025.pdf, DDT_0085W_C4900_05-09-2025.pdf, DISTINTA com. 4900.xlsx, DistintaMateriali_L'OREAL_2° aggiornamento couvette BS 2025_P_C4900.xlsx
+[2025-09-05 14:00:13] DEBUG match regex ENTRATA: DDT_0085W_C4900_05-09-2025.pdf
+[2025-09-05 14:00:13] DEBUG MATERIALI contiene (4 file): DDT_0038T_C4900_05-09-2025.pdf, DDT_0085W_C4900_05-09-2025.pdf, DISTINTA com. 4900.xlsx, DistintaMateriali_L'OREAL_2° aggiornamento couvette BS 2025_P_C4900.xlsx
+[2025-09-05 14:00:13] DEBUG match regex USCITA: DDT_0038T_C4900_05-09-2025.pdf
+[2025-09-05 14:00:13] DEBUG dedupe: nessuna riga esistente, scrivo in nuova riga 11
+[2025-09-05 14:00:13] DEBUG prezzoVendita ricevuto='3' -> usato=3.0
+[2025-09-05 14:00:13] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 11) | NomeCommessa='2° aggiornamento couvette BS 2025' | Codice='C4900' | PrezzoVendita=3.0 | PDF_IN='DDT_0085W_C4900_05-09-2025.pdf'
