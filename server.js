@@ -46,7 +46,7 @@ const settingsFolderPath = '\\\\192.168.1.250\\users\\applicazioni\\gestione com
 if (!fs.existsSync(settingsFolderPath)) fs.mkdirSync(settingsFolderPath, { recursive: true });
 const settingsFilePath = path.join(settingsFolderPath, 'impostazioni.json');
 
-// ── BOLLE USCITA (con reset giornaliero reale)
+// ── BOLLE USCITA (SENZA reset: progressivo monotono crescente)
 const bolleUscitaPath = path.join(__dirname, 'data', 'bolle_in_uscita.json');
 const oggiISO = () => new Date().toISOString().split('T')[0];
 
@@ -56,25 +56,25 @@ function ensureFile(dirPath, defaultObj) {
 }
 
 function getBolleUscita() {
-  ensureFile(bolleUscitaPath, { progressivo: 1, ultimaData: oggiISO() });
+  // file minimale { progressivo: N } – accetta anche vecchia struttura con ultimaData
+  ensureFile(bolleUscitaPath, { progressivo: 1 });
   try {
     const data = JSON.parse(fs.readFileSync(bolleUscitaPath, 'utf8')) || {};
-    if (!data.ultimaData) {
-      data.ultimaData = oggiISO();
-      fs.writeFileSync(bolleUscitaPath, JSON.stringify(data, null, 2));
-    }
-    return data;
+    const progressivo = Number(data.progressivo) > 0 ? Number(data.progressivo) : 1;
+    return { progressivo };
   } catch {
-    const initial = { progressivo: 1, ultimaData: oggiISO() };
+    const initial = { progressivo: 1 };
     fs.writeFileSync(bolleUscitaPath, JSON.stringify(initial, null, 2));
     return initial;
   }
 }
-function saveBolleUscita(prog, data = oggiISO()) {
-  const record = { progressivo: prog, ultimaData: data };
+
+function saveBolleUscita(prog) {
+  const record = { progressivo: prog };
   fs.writeFileSync(bolleUscitaPath, JSON.stringify(record, null, 2));
   console.log('🚚 SALVATO bolle_in_uscita.json:', record);
 }
+
 
 // ── BOLLE ENTRATA (senza reset)
 const bolleEntrataPath = path.join(__dirname, 'data', 'bolle_in_entrata.json');
