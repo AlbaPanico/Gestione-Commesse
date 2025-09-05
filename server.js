@@ -727,28 +727,56 @@ async function generaBollaEntrata({ folderPath, advance = true }) {
 
       // compila PDF (form se presente)
       const pdfBytes = fs.readFileSync(masterPDF);
-      const pdfDoc = await PDFDocument.load(pdfBytes);
-      try {
-        const form = pdfDoc.getForm();
-        const fields = form.getFields();
-        for (const f of fields) {
-          const name = f.getName();
-          const lname = String(name).toLowerCase();
-          try {
-            if (lname.includes('numero documento')) { form.getTextField(name).setText(numeroDoc); continue; }
-            if (lname.includes('data documento'))   { form.getTextField(name).setText(dataDocIT); continue; }
-            if (name === 'Descrizione')             { form.getTextField(name).setText(descrizione); continue; }
-            if (name === 'qta')                     { form.getTextField(name).setText(String(quantita ?? '')); continue; }
-            if (name === 'colli')                   { form.getTextField(name).setText(String(colli ?? '')); continue; }
-            if (name === 'Ns DDT')                  { form.getTextField(name).setText(nsDdt); continue; }
-            if (name === 'del')                     { form.getTextField(name).setText(dataNsDdt); continue; }
-            if (name === 'Testo8')                  { form.getTextField(name).setText(dataTrasportoRitiro); continue; }
-            if (name === 'Testo9')                  { form.getTextField(name).setText(dataTrasportoRitiro); continue; }
-            if (lname.includes('trasporto'))        { form.getTextField(name).setText(dataTrasportoRitiro); continue; }
-            if (lname.includes('ritiro'))           { form.getTextField(name).setText(dataTrasportoRitiro); continue; }
-          } catch {}
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    try {
+      const form = pdfDoc.getForm();
+      const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+      // helper wrap parole -> \n
+      const wrapText = (str, max = 52) => {
+        const words = String(str || "").split(/\s+/);
+        const lines = [];
+        let line = "";
+        for (const w of words) {
+          if (!w) continue;
+          const candidate = line ? line + " " + w : w;
+          if (candidate.length <= max) line = candidate;
+          else { lines.push(line); line = w; }
         }
-      } catch {} // PDF senza form: ok
+        if (line) lines.push(line);
+        return lines.join("\n");
+      };
+
+      const fields = form.getFields();
+      for (const f of fields) {
+        const name = f.getName();
+        const lname = String(name).toLowerCase();
+        try {
+          if (lname.includes('numero documento')) { form.getTextField(name).setText(numeroDoc); continue; }
+          if (lname.includes('data documento'))   { form.getTextField(name).setText(dataDocIT); continue; }
+
+          if (name === 'Descrizione') {
+            const tf = form.getTextField(name);
+            tf.enableMultiline();
+            tf.setText(wrapText(descrizione, 52));
+            tf.setFontSize(10);
+            continue;
+          }
+
+          if (name === 'qta')     { form.getTextField(name).setText(String(quantita ?? '')); continue; }
+          if (name === 'colli')   { form.getTextField(name).setText(String(colli ?? '')); continue; }
+          if (name === 'Ns DDT')  { form.getTextField(name).setText(nsDdt); continue; }
+          if (name === 'del')     { form.getTextField(name).setText(dataNsDdt); continue; }
+          if (name === 'Testo8')  { form.getTextField(name).setText(dataTrasportoRitiro); continue; }
+          if (name === 'Testo9')  { form.getTextField(name).setText(dataTrasportoRitiro); continue; }
+          if (lname.includes('trasporto')) { form.getTextField(name).setText(dataTrasportoRitiro); continue; }
+          if (lname.includes('ritiro'))    { form.getTextField(name).setText(dataTrasportoRitiro); continue; }
+        } catch {}
+      }
+
+      try { form.updateFieldAppearances(helv); } catch {}
+    } catch {} // PDF senza form: va bene, salviamo copia
+
 
       // ── SCRITTURA ATOMICA + AVANZO SOLO SE SCRITTO
       const outBytes = await pdfDoc.save();
