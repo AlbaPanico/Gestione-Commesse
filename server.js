@@ -11,7 +11,8 @@ const cron = require('node-cron');
 const { startMultiPrinterScheduler, rigeneraSettimana } = require('./stampantiMultiScheduler');
 const crypto = require('crypto');
 const app = express();
-const { PDFDocument } = require('pdf-lib');
+const { PDFDocument, StandardFonts } = require('pdf-lib');
+
 
 
 const XLSX_STYLE = require('xlsx-style'); // per stili/scrittura

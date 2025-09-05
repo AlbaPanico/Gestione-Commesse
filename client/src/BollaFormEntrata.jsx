@@ -1,6 +1,7 @@
 // File: BollaFormEntrata.jsx
 import React, { useState, useEffect, useRef } from "react";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, StandardFonts } from "pdf-lib";
+
 
 // === Leggi Prezzo Vendita da report.json ===
 async function getPrezzoVenditaDaReport(commessa) {
@@ -84,12 +85,21 @@ async function salvaBollaNelBackend({ folderPath, fileName, pdfBlob }) {
     reader.onloadend = async () => {
       const pdfData = reader.result;
       try {
-        await fetch("http://192.168.1.250:3001/api/save-pdf-report", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ folderPath, pdfData, fileName }),
-        });
-        resolve();
+        const r = await fetch("http://192.168.1.250:3001/api/save-pdf-report", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ folderPath, pdfData, fileName }),
+});
+if (r.status === 409) {
+  // già creato da un altro trigger: la trattiamo come “ok”
+  resolve();
+} else if (!r.ok) {
+  const data = await r.json().catch(() => ({}));
+  reject(new Error(data.message || 'Errore salvataggio PDF'));
+} else {
+  resolve();
+}
+
       } catch (e) {
         reject(e);
       }
@@ -481,27 +491,42 @@ const commessaStr = codiceVisivo;                   // uniformiamo al formato T
 
     const pdfDoc = await PDFDocument.load(masterPDF);
     const form = pdfDoc.getForm();
+    const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+    // helper wrapping a capo per parole
+    const wrapText = (str, max = 52) => {
+      const words = String(str || "").split(/\s+/);
+      const lines = [];
+      let line = "";
+      for (const w of words) {
+        if (!w) continue;
+        const candidate = line ? line + " " + w : w;
+        if (candidate.length <= max) line = candidate;
+        else { lines.push(line); line = w; }
+      }
+      if (line) lines.push(line);
+      return lines.join("\n");
+    };
 
     pdfFieldList.forEach(({ name }) => {
       if (name === "Descrizione") {
         try {
-          form.getTextField(name).setText(descrizioneStandard);
+          const tf = form.getTextField(name);
+          tf.enableMultiline();
+          tf.setText(wrapText(descrizioneStandard, 52)); // va a capo
+          tf.setFontSize(10); // opzionale: testo più piccolo se lungo
         } catch {}
       } else if (name === "qta") {
-        try {
-          form.getTextField(name).setText(String(quantita));
-        } catch {}
+        try { form.getTextField(name).setText(String(quantita)); } catch {}
       } else if (name === "colli") {
-        try {
-          form.getTextField(name).setText(String(formValues["colli"] ?? ""));
-        } catch {}
+        try { form.getTextField(name).setText(String(formValues["colli"] ?? "")); } catch {}
       } else {
-        // Non forziamo Testo8/Testo9 qui: se non trovati restano vuoti
-        try {
-          form.getTextField(name).setText(finalFormVals[name] || "");
-        } catch {}
+        try { form.getTextField(name).setText(finalFormVals[name] || ""); } catch {}
       }
     });
+
+    // rigenera le appearance con il font scelto (utile per multiline)
+    try { form.updateFieldAppearances(helv); } catch {}
 
     const dataFile = oggiStr();
     const nomeFile = `DDT_${nuovoNumeroPuro}W_${commessaStr}_${dataFile}.pdf`; // ✅ filename "ricco" come da regex Python
