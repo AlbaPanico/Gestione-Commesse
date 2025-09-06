@@ -1415,17 +1415,53 @@ app.get('/api/stampanti-parsed', (req, res) => {
 
 app.get('/api/stampanti/settings', (req, res) => {
   const settingsPath = path.join(__dirname, 'data', 'stampantiSettings.json');
-  if (!fs.existsSync(settingsPath)) return res.json({});
-  try { res.json(JSON.parse(fs.readFileSync(settingsPath, 'utf8'))); }
-  catch { res.status(500).json({ error: 'Impossibile leggere le impostazioni' }); }
+  try {
+    let data = {};
+    if (fs.existsSync(settingsPath)) {
+      const raw = fs.readFileSync(settingsPath, 'utf8').trim();
+      data = raw ? JSON.parse(raw) : {};
+    }
+    if (!Array.isArray(data.printers)) data.printers = [];
+    if (typeof data.monitorJsonPath !== 'string') data.monitorJsonPath = '';
+    if (typeof data.reportGeneralePath !== 'string') data.reportGeneralePath = '';
+    if (typeof data.storicoConsumiUrl !== 'string') data.storicoConsumiUrl = '';
+    res.json(data);
+  } catch {
+    res.status(500).json({ error: 'Impossibile leggere le impostazioni' });
+  }
 });
 
 app.post('/api/stampanti/settings', (req, res) => {
-  const { printers, monitorJsonPath, reportGeneralePath } = req.body;
   const settingsDir = path.join(__dirname, 'data');
   if (!fs.existsSync(settingsDir)) fs.mkdirSync(settingsDir, { recursive: true });
-  const toSave = { printers: Array.isArray(printers) ? printers : [], monitorJsonPath, reportGeneralePath: reportGeneralePath || '' };
-  fs.writeFileSync(path.join(settingsDir, 'stampantiSettings.json'), JSON.stringify(toSave, null, 2));
+
+  const filePath = path.join(settingsDir, 'stampantiSettings.json');
+
+  // leggi esistenti per merge non distruttivo
+  let current = {};
+  try {
+    if (fs.existsSync(filePath)) {
+      const raw = fs.readFileSync(filePath, 'utf8').trim();
+      current = raw ? JSON.parse(raw) : {};
+    }
+  } catch {}
+
+  const {
+    printers,
+    monitorJsonPath,
+    reportGeneralePath,
+    storicoConsumiUrl
+  } = req.body || {};
+
+  const next = {
+    ...current,
+    printers: Array.isArray(printers) ? printers : (current.printers || []),
+    monitorJsonPath: typeof monitorJsonPath === 'string' ? monitorJsonPath : (current.monitorJsonPath || ''),
+    reportGeneralePath: typeof reportGeneralePath === 'string' ? reportGeneralePath : (current.reportGeneralePath || ''),
+    storicoConsumiUrl: typeof storicoConsumiUrl === 'string' ? storicoConsumiUrl : (current.storicoConsumiUrl || '')
+  };
+
+  fs.writeFileSync(filePath, JSON.stringify(next, null, 2), 'utf8');
   res.json({ ok: true });
 });
 
