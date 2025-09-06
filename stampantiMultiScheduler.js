@@ -151,11 +151,15 @@ async function generaReportDaAclFile(aclFilePath, _outputJsonPathIgnored, monito
   // === 1) Paths & settaggi ===
   const settingsPathLocal = path.join(__dirname, "data", "stampantiSettings.json");
   let reportGeneralePath = path.join(__dirname, "data");
+  let printersSettings = [];
   if (fs.existsSync(settingsPathLocal)) {
     try {
       const s = JSON.parse(fs.readFileSync(settingsPathLocal, "utf8"));
       if (s.reportGeneralePath && fs.existsSync(s.reportGeneralePath)) {
         reportGeneralePath = s.reportGeneralePath;
+      }
+      if (Array.isArray(s.printers)) {
+        printersSettings = s.printers;
       }
     } catch {}
   }
@@ -227,6 +231,35 @@ async function generaReportDaAclFile(aclFilePath, _outputJsonPathIgnored, monito
   const isArizonaB = (name) => String(name || "").trim().toUpperCase().includes("ARIZONA B");
   const isArizonaA = (name) => String(name || "").trim().toUpperCase().includes("ARIZONA A");
 
+  const findPrinterSettings = (name) => {
+    const wanted = String(name || "").trim().toLowerCase();
+    return printersSettings.find(p =>
+      String(p.nome || p.name || "").trim().toLowerCase() === wanted
+    );
+  };
+  const calcCostoInchiostro = (row, printerSett) => {
+    if (!row) return null;
+    const prezzo_cmyk    = Number(printerSett?.costo_cmyk ?? printerSett?.costoCMYK ?? 0) || 0;
+    const prezzo_w       = Number(printerSett?.costo_w ?? printerSett?.costoW ?? 0) || 0;
+    const prezzo_vernice = Number(printerSett?.costo_vernice ?? printerSett?.costoVernice ?? 0) || 0;
+
+    const c = Number(row.inkcolorcyan)     || 0;
+    const m = Number(row.inkcolormagenta)  || 0;
+    const y = Number(row.inkcoloryellow)   || 0;
+    const k = Number(row.inkcolorblack)    || 0;
+    const w = Number(row.inkcolorwhite)    || 0;
+    const v = Number(row.inkcolorvarnish)  || 0;
+
+    const cmyk_ul = c + m + y + k; // unità raw (µL) come nel frontend
+    // Prezzi attesi in €/L: converto µL -> L dividendo per 1_000_000
+    const costo_cmyk    = (cmyk_ul / 1_000_000) * prezzo_cmyk;
+    const costo_w       = (w      / 1_000_000) * prezzo_w;
+    const costo_varnish = (v      / 1_000_000) * prezzo_vernice;
+    const tot = costo_cmyk + costo_w + costo_varnish;
+
+    return Number.isFinite(tot) ? Number(tot.toFixed(2)) : null;
+  };
+
   // mappa esistente per merge
   const map = new Map(all.map(r => [getKey(r), r]));
 
@@ -270,21 +303,33 @@ async function generaReportDaAclFile(aclFilePath, _outputJsonPathIgnored, monito
       newConsumo = "";
     }
 
+    // calcolo costo inchiostro (per tutte le stampanti)
+    const printerSett = findPrinterSettings(r["dispositivo"]);
+    const costoInk   = calcCostoInchiostro(r, printerSett);
+
     // dedupe/merge
     const key = getKey(r);
     if (map.has(key)) {
       const ex = map.get(key);
       const merged = { ...ex, ...r };
       merged["consumo_kwh"] = pickConsumo(ex["consumo_kwh"], newConsumo);
+      // costo inchiostro: calcolato sui dati merged
+      const costoInkMerged = calcCostoInchiostro(merged, printerSett);
+      if (costoInkMerged !== null) merged["Costo Inchiostro"] = costoInkMerged;
+
       // preserva "Done" se l'esistente è Done e il nuovo non lo è
       const exDone = (String(ex.result || "").toLowerCase() === "done");
       const newDone = (String(r.result || "").toLowerCase() === "done");
       if (exDone && !newDone) merged.result = ex.result;
+
       map.set(key, merged);
     } else {
       const n = toNum(newConsumo);
       if (n !== null) r["consumo_kwh"] = Number(n.toFixed(3));
       else if (newConsumo === "" || newConsumo === 0) r["consumo_kwh"] = newConsumo;
+
+      if (costoInk !== null) r["Costo Inchiostro"] = costoInk;
+
       map.set(key, r);
     }
   }
