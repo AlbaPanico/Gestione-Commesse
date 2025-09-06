@@ -76,9 +76,10 @@ def get_materiali():
                         row_dict[key] = row_dict[key].strftime('%d-%m-%Y')
                     except Exception:
                         pass
-            # Gestione campo Note (testo libero o None)
-            if "Note" in row_dict and row_dict["Note"] is not None:
-                row_dict["Note"] = str(row_dict["Note"])
+            # Gestione campo NoteRiga (testo libero o None)
+if "NoteRiga" in row_dict and row_dict["NoteRiga"] is not None:
+    row_dict["NoteRiga"] = str(row_dict["NoteRiga"])
+
             risultati.append(row_dict)
         conn.close()
 
