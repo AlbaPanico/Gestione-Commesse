@@ -27,6 +27,7 @@ function formatDateDMY(dateStr) {
 
 const COLUMNS_ORDER = [
   "dispositivo",
+  "jobid",                       // <── NUOVO: Job ID subito dopo Dispositivo
   "operatornote",
   "jobname",
   "startdate",
@@ -49,6 +50,7 @@ const COLUMNS_ORDER = [
 
 const HEADER_MAP = {
   dispositivo:            "Dispositivo",
+  jobid:                  "Job ID",                    // <── NUOVO
   jobname:                "Nome Lavoro",
   startdate:              "Data Inizio",
   starttime:              "Ora Inizio",
