@@ -14,11 +14,13 @@ export default function NewSlide({
   onClose,
   printers: initialPrinters = [],
   monitorJsonPath = "",
-  reportGeneralePath = ""
+  reportGeneralePath = "",
+  storicoConsumiUrl = ""
 }) {
   const [stampanti, setStampanti] = useState(initialPrinters);
   const [monitor, setMonitor] = useState(monitorJsonPath);
   const [reportGenerale, setReportGenerale] = useState(reportGeneralePath);
+  const [storicoConsumi, setStoricoConsumi] = useState(storicoConsumiUrl);
 
   // Aggiunta stampante
   const [showAdd, setShowAdd] = useState(false);
