@@ -1421,32 +1421,36 @@ app.get('/api/stampanti/settings', (req, res) => {
 });
 
 app.post('/api/stampanti/settings', (req, res) => {
-  const { printers, monitorJsonPath, reportGeneralePath } = req.body;
-  const settingsDir = path.join(__dirname, 'data');
-  if (!fs.existsSync(settingsDir)) fs.mkdirSync(settingsDir, { recursive: true });
-  const toSave = { printers: Array.isArray(printers) ? printers : [], monitorJsonPath, reportGeneralePath: reportGeneralePath || '' };
-  fs.writeFileSync(path.join(settingsDir, 'stampantiSettings.json'), JSON.stringify(toSave, null, 2));
-  res.json({ ok: true });
-});
-
-app.get('/api/stampanti/latest-csv', (req, res) => {
-  const folder = req.query.folder;
-  if (!folder) return res.status(400).json({ error: 'folder missing' });
   try {
-    const files = fs.readdirSync(folder).filter(f => f.toLowerCase().endsWith('.csv'));
-    if (!files.length) return res.json({ headers: [], rows: [] });
-    const latest = files.map(name => ({ name, mtime: fs.statSync(path.join(folder, name)).mtimeMs }))
-      .sort((a, b) => b.mtime - a.mtime)[0].name;
+    const settingsDir = path.join(__dirname, 'data');
+    if (!fs.existsSync(settingsDir)) fs.mkdirSync(settingsDir, { recursive: true });
+    const file = path.join(settingsDir, 'stampantiSettings.json');
 
-    const content = fs.readFileSync(path.join(folder, latest), 'utf8').trim();
-    const lines = content.split(/\r?\n/);
-    if (!lines.length) return res.json({ headers: [], rows: [] });
+    let existing = {};
+    try { if (fs.existsSync(file)) existing = JSON.parse(fs.readFileSync(file, 'utf8') || '{}'); } catch {}
 
-    const rawHeaders = lines[0].split(';').map(f => f.trim().replace(/^"|"$/g, ''));
-    const rawRows = lines.slice(1).map(line => line.split(';').map(f => f.trim().replace(/^"|"$/g, '')));
-    res.json({ headers: rawHeaders, rows: rawRows });
-  } catch (err) { res.status(500).json({ error: err.toString() }); }
+    const b = req.body || {};
+    const merged = {
+      ...existing,
+      printers: Array.isArray(b.printers) ? b.printers : (existing.printers || []),
+      monitorJsonPath: b.monitorJsonPath ?? existing.monitorJsonPath ?? '',
+      reportGeneralePath: b.reportGeneralePath ?? existing.reportGeneralePath ?? '',
+
+      // nuovi: costi inchiostri ed energia + policy di calcolo
+      inkCosts: b.inkCosts ?? existing.inkCosts,                         // es: { C:0.18, M:0.18, Y:0.18, K:0.18, W:0.25 }
+      energyCostPerKwh: (typeof b.energyCostPerKwh === 'number') ? b.energyCostPerKwh : (existing.energyCostPerKwh ?? 0.25),
+      defaultPowerKw: (typeof b.defaultPowerKw === 'number') ? b.defaultPowerKw : (existing.defaultPowerKw ?? 2.4),
+      powerKwByPrinter: b.powerKwByPrinter ?? existing.powerKwByPrinter, // es: { "Arizona 1380": 2.8 }
+      metricsPolicy: b.metricsPolicy ?? existing.metricsPolicy           // vedi endpoint /api/stampanti/metrics
+    };
+
+    fs.writeFileSync(file, JSON.stringify(merged, null, 2));
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.toString() });
+  }
 });
+
 
 // storico settimanale
 app.get('/api/storico-settimana', (req, res) => {
