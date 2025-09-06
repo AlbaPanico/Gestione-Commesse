@@ -105,10 +105,10 @@ async function rigeneraSettimana(week, year) {
       if (!Array.isArray(arr) || arr.length === 0) continue;
 
       for (const r of arr) {
-        // 🔴 NUOVO: priorità alla data/ora di FINE; fallback alla data/ora di INIZIO
+        // ✅ NUOVO: priorità alla FINE; fallback all'INIZIO
         const tsEnd   = toMillis(r.readydate, r.readytime);
         const tsStart = toMillis(r.startdate, r.starttime);
-        const ts = !isNaN(tsEnd) && tsEnd ? tsEnd
+        const ts = (!isNaN(tsEnd) && tsEnd) ? tsEnd
                  : (!isNaN(tsStart) && tsStart ? tsStart : NaN);
 
         const d = !isNaN(ts) ? new Date(ts) : new Date();
