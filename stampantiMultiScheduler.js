@@ -110,7 +110,7 @@ async function rigeneraSettimana(week, year) {
       const prezzo_w       = Number(printerSett?.costo_w       ?? printerSett?.costoW       ?? 0) || 0;
       const prezzo_vernice = Number(printerSett?.costo_vernice ?? printerSett?.costoVernice ?? 0) || 0;
 
-      // Valori ink in µL → converto in L dividendo per 1_000_000
+      // Valori ink in µL → L
       const c = Number(row.inkcolorcyan)     || 0;
       const m = Number(row.inkcolormagenta)  || 0;
       const y = Number(row.inkcoloryellow)   || 0;
@@ -129,7 +129,7 @@ async function rigeneraSettimana(week, year) {
     const estraiNomeStampanteDaFile = (fname) =>
       fname.replace(/^Reportgenerali_(.*)\.json$/i, "$1");
 
-    // 3) costruisci righe della settimana con costo inchiostro calcolato
+    // 3) costruisci righe della settimana con costo inchiostro + tot kWh
     const allRows = [];
     for (const fname of files) {
       const full = path.join(reportGeneralePath, fname);
@@ -153,11 +153,26 @@ async function rigeneraSettimana(week, year) {
 
         const dispositivo = r.dispositivo || printerNameFromFile;
         const sett = printerSett || findPrinterSettings(dispositivo);
+
+        // Calcolo Costo Inchiostro
         const costoInk = calcCostoInchiostro(r, sett);
+
+        // Calcolo Tot Stampe (kWh) = consumo_kwh (per copia) × set completati
+        const copie = Number(r.noffinishedsets || r.printsdone || 0);
+        const perCopy =
+          (r["consumo_kwh"] !== undefined && r["consumo_kwh"] !== "" && !isNaN(r["consumo_kwh"]))
+            ? Number(r["consumo_kwh"])
+            : null;
+        const totKwh =
+          (perCopy !== null && copie > 0)
+            ? Number((perCopy * copie).toFixed(3))
+            : (perCopy === 0 && copie > 0 ? 0 : "");
 
         const merged = { ...r };
         if (!merged.dispositivo) merged.dispositivo = dispositivo;
         if (costoInk !== null) merged["Costo Inchiostro"] = costoInk;
+        // Aggiorno/normalizzo sempre "Tot Stampe (kWh)"
+        merged["Tot Stampe (kWh)"] = totKwh;
 
         allRows.push(merged);
       }
