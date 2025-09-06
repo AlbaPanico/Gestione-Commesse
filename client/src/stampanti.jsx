@@ -636,14 +636,21 @@ const [stampanti, setStampanti] = useState([]);
     Consumi kWh
   </button>
   <button
-    style={btnStyle}
-    onMouseOver={e => Object.assign(e.currentTarget.style, btnHover)}
-    onMouseOut={e => Object.assign(e.currentTarget.style, btnStyle)}
-    onClick={() => window.open((storicoConsumiUrl || "http://192.168.1.250:3000/storico"), "_blank")}
-    title={storicoConsumiUrl ? storicoConsumiUrl : "http://192.168.1.250:3000/storico"}
-  >
-    Storico Consumi
-  </button>
+  style={btnStyle}
+  onMouseOver={e => Object.assign(e.currentTarget.style, btnHover)}
+  onMouseOut={e => Object.assign(e.currentTarget.style, btnStyle)}
+  onClick={() => {
+    const url = storicoConsumiUrl || "http://192.168.1.250:3000/storico";
+    const msg = "Vuoi accedere alla finestra Storico? pin 99999 puk 00000 9999 00000";
+    if (window.confirm(msg)) {
+      window.open(url, "_blank");
+    }
+  }}
+  title={storicoConsumiUrl ? storicoConsumiUrl : "http://192.168.1.250:3000/storico"}
+>
+  Storico Consumi
+</button>
+
   <button
     style={btnStyle}
     onMouseOver={e => Object.assign(e.currentTarget.style, btnHover)}
