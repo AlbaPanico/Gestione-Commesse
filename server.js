@@ -26,9 +26,27 @@ const MATERIALI_SCRIPT = 'C:\\Users\\Applicazioni\\Gestione Commesse\\FinestraMa
 // ───────────────────────────────────────────────────────────────────────────────
 // Bootstrap
 // ───────────────────────────────────────────────────────────────────────────────
-console.log('Avvio automatico del backend materiali Flask...');
-const materialiProc = spawn(PYTHON_PATH, [MATERIALI_SCRIPT], { detached: true, stdio: 'ignore' });
-materialiProc.unref();
+console.log('Controllo backend materiali Flask...');
+try {
+  const { execSync } = require('child_process');
+  const list = execSync('tasklist /FI "IMAGENAME eq python.exe" /V').toString().toLowerCase();
+
+  if (!list.includes('finestramateriali.py')) {
+    console.log('Avvio backend materiali Flask…');
+    const materialiProc = spawn(PYTHON_PATH, [MATERIALI_SCRIPT], { detached: false, stdio: 'ignore' });
+
+    materialiProc.on('error', (e) => {
+      console.warn('[materiali] errore avvio:', e?.message || String(e));
+    });
+
+    // chiudi il python quando chiude il server node
+    process.on('exit', () => { try { materialiProc.kill(); } catch {} });
+  } else {
+    console.log('Backend materiali Flask già in esecuzione: skip avvio.');
+  }
+} catch (e) {
+  console.warn('Impossibile verificare i processi Python:', e?.message || String(e));
+}
 
 app.use(cors());
 app.use(express.json({ limit: '200mb' }));
