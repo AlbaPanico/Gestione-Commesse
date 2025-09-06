@@ -53,32 +53,40 @@ export default function NewSlide({
 
   // Salva impostazioni e chiudi
   const saveSettingsAndClose = () => {
-    fetch(`${SERVER}/api/stampanti/settings`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+  const monitorClean = monitor.replace(/"/g, "").trim();
+  const reportClean = reportGenerale.replace(/"/g, "").trim();
+  const storicoClean = storicoConsumi.replace(/"/g, "").trim();
+
+  fetch(`${SERVER}/api/stampanti/settings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      printers: stampanti,
+      monitorJsonPath: monitorClean,
+      reportGeneralePath: reportClean,
+      storicoConsumiUrl: storicoClean
+    }),
+  })
+    .then(res => res.json())
+    .then(() => {
+      onClose({
         printers: stampanti,
-        monitorJsonPath: monitor.replace(/"/g, "").trim(),
-        reportGeneralePath: reportGenerale.replace(/"/g, "").trim(),
-      }),
-    })
-      .then(res => res.json())
-      .then(() => {
-        onClose({
-          printers: stampanti,
-          monitor: monitor.replace(/"/g, "").trim(),
-          reportGenerale: reportGenerale.replace(/"/g, "").trim()
-        });
-      })
-      .catch(err => {
-        alert("Errore nel salvataggio delle impostazioni: " + err);
-        onClose({
-          printers: stampanti,
-          monitor: monitor.replace(/"/g, "").trim(),
-          reportGenerale: reportGenerale.replace(/"/g, "").trim()
-        });
+        monitor: monitorClean,
+        reportGenerale: reportClean,
+        storico: storicoClean
       });
-  };
+    })
+    .catch(err => {
+      alert("Errore nel salvataggio delle impostazioni: " + err);
+      onClose({
+        printers: stampanti,
+        monitor: monitorClean,
+        reportGenerale: reportClean,
+        storico: storicoClean
+      });
+    });
+};
+
 
   // Aggiungi stampante all'elenco
   const handleAddStampante = () => {
@@ -485,24 +493,44 @@ export default function NewSlide({
           }}
         />
 
-        {/* Percorso REPORT GENERALE */}
-        <label style={{ color: "#fff", marginBottom: 8 }}>
-          Incolla il percorso REPORT GENERALE:
-        </label>
-        <input
-          value={reportGenerale}
-          onChange={e => setReportGenerale(e.target.value)}
-          placeholder="C:\\report\\ReportGenerali.xlsx"
-          style={{
-            padding: 10,
-            borderRadius: 6,
-            border: "1px solid #ccc",
-            background: "#2D3748",
-            color: "#fff",
-            fontFamily: "monospace",
-            marginBottom: 16,
-          }}
-        />
+       {/* Percorso REPORT GENERALE */}
+<label style={{ color: "#fff", marginBottom: 8 }}>
+  Incolla il percorso REPORT GENERALE:
+</label>
+<input
+  value={reportGenerale}
+  onChange={e => setReportGenerale(e.target.value)}
+  placeholder="C:\\report\\ReportGenerali.xlsx"
+  style={{
+    padding: 10,
+    borderRadius: 6,
+    border: "1px solid #ccc",
+    background: "#2D3748",
+    color: "#fff",
+    fontFamily: "monospace",
+    marginBottom: 16,
+  }}
+/>
+
+{/* Storico consumi energia (URL) */}
+<label style={{ color: "#fff", marginBottom: 8 }}>
+  Storico consumi energia (URL):
+</label>
+<input
+  value={storicoConsumi}
+  onChange={e => setStoricoConsumi(e.target.value)}
+  placeholder="http://192.168.1.250:3000/storico"
+  style={{
+    padding: 10,
+    borderRadius: 6,
+    border: "1px solid #ccc",
+    background: "#2D3748",
+    color: "#fff",
+    fontFamily: "monospace",
+    marginBottom: 16,
+  }}
+/>
+
 
         <p style={{ color: "#cbd5e0", fontSize: 12, marginTop: 12 }}>
           Premi <kbd>Esc</kbd> per confermare/uscire.
