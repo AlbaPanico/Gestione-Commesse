@@ -179,16 +179,19 @@ export default function Stampanti({ onBack }) {
   };
 
   function getRowKey(r) {
-    return [
-      r.dispositivo,
-      r.startdate,
-      r.starttime,
-      r.readydate,
-      r.readytime,
-      r.jobname,
-      r.printmode,
-    ].join("|");
-  }
+  const jid = r.jobid || r["Job ID"] || r.documentid || "";
+  return [
+    r.dispositivo,
+    r.startdate,
+    r.starttime,
+    r.readydate,
+    r.readytime,
+    r.jobname,
+    r.printmode,
+    jid, // <── aggiunto
+  ].join("|");
+}
+
 
   return (
     <div style={{
@@ -440,7 +443,13 @@ export default function Stampanti({ onBack }) {
       fontFamily: "inherit"
     }}
   >
-   {(() => {
+  {(() => {
+  // ── NUOVO: Job ID con fallback da più campi
+  if (k === "jobid") {
+    const id = firstRow.jobid || firstRow["Job ID"] || firstRow.documentid;
+    return id || "";
+  }
+
   if (k === "imagewidth" || k === "imageheight") {
     const val = firstRow[k];
     return val !== undefined && val !== null && !isNaN(val)
@@ -495,6 +504,7 @@ export default function Stampanti({ onBack }) {
     ? firstRow[k]
     : "";
 })()}
+
     {ci === 0 && rows.length > 1 && (
       <span style={{ marginLeft: 8, color: "#fff" }}>
         {isOpen ? "▼" : "▶"} ({rows.length})
@@ -533,7 +543,13 @@ export default function Stampanti({ onBack }) {
       fontFamily: "inherit"
     }}
   >
-   {(() => {
+  {(() => {
+  // ── NUOVO: Job ID con fallback da più campi
+  if (k === "jobid") {
+    const id = row.jobid || row["Job ID"] || row.documentid;
+    return id || "";
+  }
+
   if (k === "imagewidth" || k === "imageheight") {
     const val = row[k];
     return val !== undefined && val !== null && !isNaN(val)
@@ -588,6 +604,7 @@ export default function Stampanti({ onBack }) {
     ? row[k]
     : "";
 })()}
+
   </td>
 ))}
                                 </tr>
