@@ -656,8 +656,7 @@ const [stampanti, setStampanti] = useState([]);
 
 
 
-      {isNewSlide && (
-{isNewSlide && (
+     {isNewSlide && (
   <NewSlide
     printers={stampanti}
     monitorJsonPath={monitorJsonPath}
@@ -674,6 +673,7 @@ const [stampanti, setStampanti] = useState([]);
     }}
   />
 )}
+
 
     </div>
   );
