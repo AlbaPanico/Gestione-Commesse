@@ -275,7 +275,7 @@ async function generaReportDaAclFile(aclFilePath, _outputJsonPathIgnored, monito
     // forza dispositivo
     if (nomeStampanteForza) r["dispositivo"] = nomeStampanteForza;
 
-    // data/ora job
+        // data/ora job (priorità FINE → readydate/readytime; fallback INIZIO)
     const sd = r.startdate || r["startdate"];
     const st = r.starttime || r["starttime"] || "00:00:00";
     const rd = r.readydate  || r["readydate"];
@@ -283,15 +283,17 @@ async function generaReportDaAclFile(aclFilePath, _outputJsonPathIgnored, monito
     const tStart = toMillis(sd, st);
     const tEnd   = toMillis(rd, rt);
 
-    // rotta SOLO sul file della settimana corrente: se la data non è di questa settimana → skip
-    let recDate = isNaN(tStart) ? (isNaN(tEnd) ? null : new Date(tEnd)) : new Date(tStart);
-    if (!recDate) recDate = new Date();
+    // Usa la settimana della FINE; se manca, usa INIZIO
+    const recTs = (!isNaN(tEnd) && tEnd) ? tEnd
+                 : (!isNaN(tStart) && tStart ? tStart : NaN);
+    const recDate = !isNaN(recTs) ? new Date(recTs) : new Date();
     const recW = getISOWeek(recDate);
     const recY = getISOWeekYear(recDate);
     if (recW !== week || recY !== year) {
       // file delle settimane passate NON deve più essere toccato
       continue;
     }
+
 
     // calcolo consumo per copia SOLO Arizona B se possibile (altrimenti lascio vuoto/new)
     let newConsumo = r["consumo_kwh"];
