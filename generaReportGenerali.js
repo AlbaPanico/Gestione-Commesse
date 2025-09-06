@@ -45,26 +45,25 @@ function aggiornaTempoXCopiaEConsumo(allReport, monitorArr, stampantiSettings) {
   for (let job of allReport) {
     const nomeStampante = job.dispositivo || job.nome || job.device;
     const printerSett = getPrinterSettings(stampantiSettings, nomeStampante) || {};
-    const prezzo_cmyk    = Number(printerSett.costo_cmyk   ?? printerSett.costoCMYK    ) || 0;
-    const prezzo_w       = Number(printerSett.costo_w      ?? printerSett.costoW       ) || 0;
-    const prezzo_vernice = Number(printerSett.costo_vernice?? printerSett.costoVernice ) || 0;
+    const prezzo_cmyk    = Number(printerSett.costo_cmyk    ?? printerSett.costoCMYK    ) || 0;
+    const prezzo_w       = Number(printerSett.costo_w       ?? printerSett.costoW       ) || 0;
+    const prezzo_vernice = Number(printerSett.costo_vernice ?? printerSett.costoVernice ) || 0;
 
-    // Calcola SEMPRE il costo inchiostro, anche per Arizona A!
-    const cmyk_ml =
-      (Number(job.inkcolorcyan) || 0) +
-      (Number(job.inkcolormagenta) || 0) +
-      (Number(job.inkcoloryellow) || 0) +
-      (Number(job.inkcolorblack) || 0);
-    const w_ml = Number(job.inkcolorwhite) || 0;
-    const varnish_ml = Number(job.inkcolorvarnish) || 0;
+    // ── Costo inchiostro (sempre, anche per Arizona A) ─────────────────────────
+    const cmyk_ul =
+      (Number(job.inkcolorcyan)     || 0) +
+      (Number(job.inkcolormagenta)  || 0) +
+      (Number(job.inkcoloryellow)   || 0) +
+      (Number(job.inkcolorblack)    || 0);
+    const w_ul  = Number(job.inkcolorwhite)   || 0;
+    const v_ul  = Number(job.inkcolorvarnish) || 0;
 
-    const costo_cmyk    = (cmyk_ml    / 1_000_000) * prezzo_cmyk;
-    const costo_w       = (w_ml       / 1_000_000) * prezzo_w;
-    const costo_varnish = (varnish_ml / 1_000_000) * prezzo_vernice;
-    const costo_totale = costo_cmyk + costo_w + costo_varnish;
-    job["Costo Inchiostro"] = Number(costo_totale.toFixed(2));
+    const costo_cmyk    = (cmyk_ul / 1_000_000) * prezzo_cmyk;
+    const costo_w       = (w_ul   / 1_000_000) * prezzo_w;
+    const costo_varnish = (v_ul   / 1_000_000) * prezzo_vernice;
+    job["Costo Inchiostro"] = Number((costo_cmyk + costo_w + costo_varnish).toFixed(2));
 
-    // SOLO per Arizona A: azzera consumi energetici, NON il costo inchiostro!
+    // ── Arizona A: energia non disponibile (mantieni inchiostro) ───────────────
     if ((nomeStampante || '').toLowerCase() === 'arizona a') {
       job["consumo_kwh"] = "";
       job["Tot Stampe (kWh)"] = "";
@@ -73,30 +72,32 @@ function aggiornaTempoXCopiaEConsumo(allReport, monitorArr, stampantiSettings) {
 
     const stampEseguite = Number(job.printsdone || job.noffinishedsets || 0);
 
-    // BLOCCO 1: Calcolo solo se NON esiste già consumo_kwh
+    // ── Calcola consumo_kwh per copia SOLO se mancante ─────────────────────────
     if (
       (job["consumo_kwh"] === undefined || job["consumo_kwh"] === "") &&
       stampEseguite >= 1
     ) {
       const tStart = parseDateTime(job.startdate, job.starttime);
       const durataMs = timeToMs(job.activetime);
-      const idleMs = timeToMs(job.idletime);
+      const idleMs   = timeToMs(job.idletime);
       const tEnd = !isNaN(tStart) ? tStart + durataMs + idleMs : null;
+
       if (!isNaN(tStart) && tEnd) {
         const endDateObj = new Date(tEnd);
         job["fine 1 copia"] = `${String(endDateObj.getHours()).padStart(2, '0')}:${String(endDateObj.getMinutes()).padStart(2, '0')}:${String(endDateObj.getSeconds()).padStart(2, '0')}`;
       } else {
         job["fine 1 copia"] = "";
       }
-      let consumoKwh = "";
+
       if (Array.isArray(monitorArr) && monitorArr.length > 0 && !isNaN(tStart) && tEnd) {
         const ordered = [...monitorArr].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
         const tsArr = ordered.map(d => new Date(d.timestamp).getTime());
         const idxStart = findClosestIndex(tsArr, tStart);
-        const idxEnd = findClosestIndex(tsArr, tEnd);
+        const idxEnd   = findClosestIndex(tsArr, tEnd);
         const i1 = Math.min(idxStart, idxEnd);
         const i2 = Math.max(idxStart, idxEnd);
         const datiMonitor = ordered.slice(i1, i2 + 1);
+
         let somma = 0;
         for (const campione of datiMonitor) {
           const k1 = Number(campione.instant_kw_1);
@@ -105,21 +106,30 @@ function aggiornaTempoXCopiaEConsumo(allReport, monitorArr, stampantiSettings) {
             somma += (k1 + k2) * 5 / 3600;
           }
         }
-        job["consumo_kwh"] = datiMonitor.length > 0 ? Number(somma.toFixed(3)) : "";
-        // ------------------- kWh PER COPIA -------------------
-        if (job["consumo_kwh"] !== "" && stampEseguite > 0) {
-          job["consumo_kwh"] = Number((job["consumo_kwh"] / stampEseguite).toFixed(3));
+        // kWh totali nel job → se ho copie, divido per copie per ottenere per-copia
+        const kwhJob = datiMonitor.length > 0 ? Number(somma.toFixed(3)) : "";
+        if (kwhJob !== "" && stampEseguite > 0) {
+          job["consumo_kwh"] = Number((kwhJob / stampEseguite).toFixed(3));
+        } else {
+          job["consumo_kwh"] = "";
         }
-
       } else {
         job["consumo_kwh"] = "";
       }
     }
-    // MAI RICALCOLARE O AZZERARE consumo_kwh se già presente!
+    // ── NON ricalcolare/azzerare se già presente ───────────────────────────────
 
-    // Calcolo Tot Stampe (kWh) = consumo_kwh * stampe eseguite (si aggiorna sempre)
-    if (job["consumo_kwh"] && !isNaN(job["consumo_kwh"]) && stampEseguite) {
-      job["Tot Stampe (kWh)"] = Number((job["consumo_kwh"] * stampEseguite).toFixed(3));
+    // ── Tot Stampe (kWh) = consumo_kwh (per copia) × set completati ────────────
+    const perCopy =
+      (job["consumo_kwh"] !== "" && !isNaN(job["consumo_kwh"]))
+        ? Number(job["consumo_kwh"])
+        : null;
+
+    if (perCopy !== null && stampEseguite > 0) {
+      job["Tot Stampe (kWh)"] = Number((perCopy * stampEseguite).toFixed(3));
+    } else if (perCopy === 0 && stampEseguite > 0) {
+      // caso esplicito: consumo per copia è 0 ma ho copie>0 → totale 0
+      job["Tot Stampe (kWh)"] = 0;
     } else {
       job["Tot Stampe (kWh)"] = "";
     }
