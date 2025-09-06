@@ -657,19 +657,22 @@ const [stampanti, setStampanti] = useState([]);
 
 
       {isNewSlide && (
- <NewSlide
-  ...
-  onClose={({ printers, monitor, reportGenerale, storicoConsumiUrl }) => {
-    setIsNewSlide(false);
-    if (Array.isArray(printers)) setStampanti(printers);
-    if (monitor) setMonitorJsonPath(monitor.replace(/"/g, "").trim());
-    if (reportGenerale) setReportGeneralePath(reportGenerale.replace(/"/g, "").trim());
-    if (typeof storicoConsumiUrl === "string") {
-      setStoricoConsumiUrl(storicoConsumiUrl.replace(/"/g, "").trim());
-    }
-  }}
-/>
-
+{isNewSlide && (
+  <NewSlide
+    printers={stampanti}
+    monitorJsonPath={monitorJsonPath}
+    reportGeneralePath={reportGeneralePath}
+    storicoConsumiUrl={storicoConsumiUrl}
+    onClose={({ printers, monitor, reportGenerale, storicoConsumiUrl }) => {
+      setIsNewSlide(false);
+      if (Array.isArray(printers)) setStampanti(printers);
+      if (monitor) setMonitorJsonPath(monitor.replace(/"/g, "").trim());
+      if (reportGenerale) setReportGeneralePath(reportGenerale.replace(/"/g, "").trim());
+      if (typeof storicoConsumiUrl === "string") {
+        setStoricoConsumiUrl(storicoConsumiUrl.replace(/"/g, "").trim());
+      }
+    }}
+  />
 )}
 
     </div>
