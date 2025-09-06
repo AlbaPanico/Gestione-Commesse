@@ -622,23 +622,32 @@ export default function Stampanti({ onBack }) {
       )}
 
       <div style={{ display: "flex", flexDirection: "row", gap: 20, justifyContent: "center", marginBottom: 20 }}>
-        <button
-          style={btnStyle}
-          onMouseOver={e => Object.assign(e.currentTarget.style, btnHover)}
-          onMouseOut={e => Object.assign(e.currentTarget.style, btnStyle)}
-          onClick={() => window.open("http://192.168.1.250:3000/", "_blank")}
-        >
-          Consumi kWh
-        </button>
-        <button
-          style={btnStyle}
-          onMouseOver={e => Object.assign(e.currentTarget.style, btnHover)}
-          onMouseOut={e => Object.assign(e.currentTarget.style, btnStyle)}
-          onClick={() => fetchWeeklyJobs(selectedWeek, selectedYear)}
-        >
-          Aggiorna
-        </button>
-      </div>
+  <button
+    style={btnStyle}
+    onMouseOver={e => Object.assign(e.currentTarget.style, btnHover)}
+    onMouseOut={e => Object.assign(e.currentTarget.style, btnStyle)}
+    onClick={() => window.open("http://192.168.1.250:3000/", "_blank")}
+  >
+    Consumi kWh
+  </button>
+  <button
+    style={btnStyle}
+    onMouseOver={e => Object.assign(e.currentTarget.style, btnHover)}
+    onMouseOut={e => Object.assign(e.currentTarget.style, btnStyle)}
+    onClick={() => window.open("http://192.168.1.250:3000/storico", "_blank")}
+  >
+    Storico Consumi
+  </button>
+  <button
+    style={btnStyle}
+    onMouseOver={e => Object.assign(e.currentTarget.style, btnHover)}
+    onMouseOut={e => Object.assign(e.currentTarget.style, btnStyle)}
+    onClick={() => fetchWeeklyJobs(selectedWeek, selectedYear)}
+  >
+    Aggiorna
+  </button>
+</div>
+
 
       {isNewSlide && (
         <NewSlide
