@@ -358,30 +358,52 @@ async function generaReportDaAclFile(aclFilePath, _outputJsonPathIgnored, monito
     const costoInk   = calcCostoInchiostro(r, printerSett);
 
     // dedupe/merge
-    const key = getKey(r);
-    if (map.has(key)) {
-      const ex = map.get(key);
-      const merged = { ...ex, ...r };
-      merged["consumo_kwh"] = pickConsumo(ex["consumo_kwh"], newConsumo);
-      // costo inchiostro: calcolato sui dati merged
-      const costoInkMerged = calcCostoInchiostro(merged, printerSett);
-      if (costoInkMerged !== null) merged["Costo Inchiostro"] = costoInkMerged;
+  const key = getKey(r);
+  if (map.has(key)) {
+    const ex = map.get(key);
+    const merged = { ...ex, ...r };
 
-      // preserva "Done" se l'esistente è Done e il nuovo non lo è
-      const exDone = (String(ex.result || "").toLowerCase() === "done");
-      const newDone = (String(r.result || "").toLowerCase() === "done");
-      if (exDone && !newDone) merged.result = ex.result;
+    // consumo_kwh (per copia) con regola di merge
+    merged["consumo_kwh"] = pickConsumo(ex["consumo_kwh"], newConsumo);
 
-      map.set(key, merged);
-    } else {
-      const n = toNum(newConsumo);
-      if (n !== null) r["consumo_kwh"] = Number(n.toFixed(3));
-      else if (newConsumo === "" || newConsumo === 0) r["consumo_kwh"] = newConsumo;
+    // Calcolo "Tot Stampe (kWh)" = consumo_kwh (per copia) × set completati
+    const copieMerged = Number(merged.noffinishedsets || merged.printsdone || 0);
+    const cMerged = (merged["consumo_kwh"] !== "" && !isNaN(merged["consumo_kwh"]))
+      ? Number(merged["consumo_kwh"])
+      : null;
+    merged["Tot Stampe (kWh)"] =
+      (cMerged !== null && copieMerged > 0)
+        ? Number((cMerged * copieMerged).toFixed(3))
+        : (cMerged === 0 && copieMerged > 0 ? 0 : "");
 
-      if (costoInk !== null) r["Costo Inchiostro"] = costoInk;
+    // preserva "Done" se l'esistente è Done e il nuovo non lo è
+    const exDone = (String(ex.result || "").toLowerCase() === "done");
+    const newDone = (String(r.result || "").toLowerCase() === "done");
+    if (exDone && !newDone) merged.result = ex.result;
 
-      map.set(key, r);
+    map.set(key, merged);
+  } else {
+    // primo inserimento
+    const n = toNum(newConsumo);
+    if (n !== null) {
+      r["consumo_kwh"] = Number(n.toFixed(3));
+    } else if (newConsumo === "" || newConsumo === 0) {
+      r["consumo_kwh"] = newConsumo;
     }
+
+    // Calcolo "Tot Stampe (kWh)" anche nel ramo nuovo
+    const copie = Number(r.noffinishedsets || r.printsdone || 0);
+    const c = (r["consumo_kwh"] !== "" && !isNaN(r["consumo_kwh"]))
+      ? Number(r["consumo_kwh"])
+      : null;
+    r["Tot Stampe (kWh)"] =
+      (c !== null && copie > 0)
+        ? Number((c * copie).toFixed(3))
+        : (c === 0 && copie > 0 ? 0 : "");
+
+    map.set(key, r);
+  }
+
   }
 
   // === 6) Scrivi SOLO il file settimanale unificato corrente ===
