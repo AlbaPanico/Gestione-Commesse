@@ -96,12 +96,13 @@ const [stampanti, setStampanti] = useState([]);
     .then(res => res.json())
     .then(data => {
       if (Array.isArray(data.printers)) setStampanti(data.printers);
-      if (data.monitorJsonPath) setMonitorJsonPath(data.monitorJsonPath);
-      if (data.reportGeneralePath) setReportGeneralePath(data.reportGeneralePath);
-      if (data.storicoConsumiUrl) setStoricoConsumiUrl(data.storicoConsumiUrl);
+      if (typeof data.monitorJsonPath === "string") setMonitorJsonPath(data.monitorJsonPath);
+      if (typeof data.reportGeneralePath === "string") setReportGeneralePath(data.reportGeneralePath);
+      if (typeof data.storicoConsumiUrl === "string") setStoricoConsumiUrl(data.storicoConsumiUrl);
     })
     .catch(console.error);
 }, []);
+
 
 
   // Carica le settimane disponibili al primo render
@@ -656,19 +657,19 @@ const [stampanti, setStampanti] = useState([]);
 
 
       {isNewSlide && (
-  <NewSlide
-    printers={stampanti}
-    monitorJsonPath={monitorJsonPath}
-    reportGeneralePath={reportGeneralePath}
-    storicoConsumiUrl={storicoConsumiUrl}
-    onClose={({ printers, monitor, reportGenerale, storico }) => {
-      setIsNewSlide(false);
-      if (Array.isArray(printers)) setStampanti(printers);
-      if (monitor) setMonitorJsonPath(monitor.replace(/"/g, "").trim());
-      if (reportGenerale) setReportGeneralePath(reportGenerale.replace(/"/g, "").trim());
-      if (typeof storico === "string") setStoricoConsumiUrl(storico.replace(/"/g, "").trim());
-    }}
-  />
+ <NewSlide
+  ...
+  onClose={({ printers, monitor, reportGenerale, storicoConsumiUrl }) => {
+    setIsNewSlide(false);
+    if (Array.isArray(printers)) setStampanti(printers);
+    if (monitor) setMonitorJsonPath(monitor.replace(/"/g, "").trim());
+    if (reportGenerale) setReportGeneralePath(reportGenerale.replace(/"/g, "").trim());
+    if (typeof storicoConsumiUrl === "string") {
+      setStoricoConsumiUrl(storicoConsumiUrl.replace(/"/g, "").trim());
+    }
+  }}
+/>
+
 )}
 
     </div>
