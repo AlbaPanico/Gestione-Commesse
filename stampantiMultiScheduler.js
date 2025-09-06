@@ -65,17 +65,13 @@ function downloadFile(url, dest, cb) {
 ----------------------------------------------------------- */
 async function rigeneraSettimana(week, year) {
   try {
-    // 1) cartella report + lettura impostazioni (anche prezzi inchiostro per stampante)
+    // 1) cartella report
     let reportGeneralePath = null;
-    let printersSettings = [];
     if (fs.existsSync(settingsPath)) {
       try {
         const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
         if (settings.reportGeneralePath && fs.existsSync(settings.reportGeneralePath)) {
           reportGeneralePath = settings.reportGeneralePath;
-        }
-        if (Array.isArray(settings.printers)) {
-          printersSettings = settings.printers;
         }
       } catch {}
     }
@@ -87,7 +83,6 @@ async function rigeneraSettimana(week, year) {
       .filter(f => /^Reportgenerali_.*\.json$/i.test(f))
       .filter(f => !/^Reportgenerali_(Arizona|Stampanti)_\d{1,2}_\d{4}\.json$/i.test(f)); // esclude i settimanali
 
-    // Helpers -------------------------------------------------------
     const toMillis = (dateStr, timeStr = "00:00:00") => {
       if (!dateStr) return NaN;
       if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return new Date(`${dateStr}T${timeStr}`).getTime();
@@ -98,38 +93,7 @@ async function rigeneraSettimana(week, year) {
       }
       return NaN;
     };
-    const findPrinterSettings = (name) => {
-      const wanted = String(name || "").trim().toLowerCase();
-      return printersSettings.find(p =>
-        String(p.nome || p.name || "").trim().toLowerCase() === wanted
-      );
-    };
-    const calcCostoInchiostro = (row, printerSett) => {
-      if (!row) return null;
-      const prezzo_cmyk    = Number(printerSett?.costo_cmyk    ?? printerSett?.costoCMYK    ?? 0) || 0;
-      const prezzo_w       = Number(printerSett?.costo_w       ?? printerSett?.costoW       ?? 0) || 0;
-      const prezzo_vernice = Number(printerSett?.costo_vernice ?? printerSett?.costoVernice ?? 0) || 0;
 
-      // Valori ink in µL → L
-      const c = Number(row.inkcolorcyan)     || 0;
-      const m = Number(row.inkcolormagenta)  || 0;
-      const y = Number(row.inkcoloryellow)   || 0;
-      const k = Number(row.inkcolorblack)    || 0;
-      const w = Number(row.inkcolorwhite)    || 0;
-      const v = Number(row.inkcolorvarnish)  || 0;
-
-      const cmyk_ul = c + m + y + k;
-      const costo_cmyk    = (cmyk_ul / 1_000_000) * prezzo_cmyk;
-      const costo_w       = (w       / 1_000_000) * prezzo_w;
-      const costo_varnish = (v       / 1_000_000) * prezzo_vernice;
-
-      const tot = costo_cmyk + costo_w + costo_varnish;
-      return Number.isFinite(tot) ? Number(tot.toFixed(2)) : null;
-    };
-    const estraiNomeStampanteDaFile = (fname) =>
-      fname.replace(/^Reportgenerali_(.*)\.json$/i, "$1");
-
-    // 3) costruisci righe della settimana con costo inchiostro + tot kWh
     const allRows = [];
     for (const fname of files) {
       const full = path.join(reportGeneralePath, fname);
@@ -140,45 +104,21 @@ async function rigeneraSettimana(week, year) {
       } catch { arr = []; }
       if (!Array.isArray(arr) || arr.length === 0) continue;
 
-      // nome stampante dal filename (fallback se mancante nel record)
-      const printerNameFromFile = estraiNomeStampanteDaFile(fname);
-      const printerSett = findPrinterSettings(printerNameFromFile);
-
       for (const r of arr) {
-        const ts = toMillis(r.startdate, r.starttime) || toMillis(r.readydate, r.readytime);
-        const d = ts ? new Date(ts) : new Date();
+        // 🔴 NUOVO: priorità alla data/ora di FINE; fallback alla data/ora di INIZIO
+        const tsEnd   = toMillis(r.readydate, r.readytime);
+        const tsStart = toMillis(r.startdate, r.starttime);
+        const ts = !isNaN(tsEnd) && tsEnd ? tsEnd
+                 : (!isNaN(tsStart) && tsStart ? tsStart : NaN);
+
+        const d = !isNaN(ts) ? new Date(ts) : new Date();
         const w = getISOWeek(d);
         const y = getISOWeekYear(d);
-        if (w !== Number(week) || y !== Number(year)) continue;
-
-        const dispositivo = r.dispositivo || printerNameFromFile;
-        const sett = printerSett || findPrinterSettings(dispositivo);
-
-        // Calcolo Costo Inchiostro
-        const costoInk = calcCostoInchiostro(r, sett);
-
-        // Calcolo Tot Stampe (kWh) = consumo_kwh (per copia) × set completati
-        const copie = Number(r.noffinishedsets || r.printsdone || 0);
-        const perCopy =
-          (r["consumo_kwh"] !== undefined && r["consumo_kwh"] !== "" && !isNaN(r["consumo_kwh"]))
-            ? Number(r["consumo_kwh"])
-            : null;
-        const totKwh =
-          (perCopy !== null && copie > 0)
-            ? Number((perCopy * copie).toFixed(3))
-            : (perCopy === 0 && copie > 0 ? 0 : "");
-
-        const merged = { ...r };
-        if (!merged.dispositivo) merged.dispositivo = dispositivo;
-        if (costoInk !== null) merged["Costo Inchiostro"] = costoInk;
-        // Aggiorno/normalizzo sempre "Tot Stampe (kWh)"
-        merged["Tot Stampe (kWh)"] = totKwh;
-
-        allRows.push(merged);
+        if (w === Number(week) && y === Number(year)) allRows.push({ ...r });
       }
     }
 
-    // 4) scrivi SOLO il nuovo unificato della settimana
+    // 3) scrivi SOLO il nuovo unificato
     const weeklyFile = path.join(reportGeneralePath, `Reportgenerali_Arizona_${week}_${year}.json`);
     fs.writeFileSync(weeklyFile, JSON.stringify(allRows, null, 2), 'utf8');
     console.log(`✅ Rigenerata settimana ${week}/${year}: ${weeklyFile} (${allRows.length} righe)`);
