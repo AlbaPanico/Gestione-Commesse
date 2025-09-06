@@ -105,19 +105,20 @@ async function rigeneraSettimana(week, year) {
       if (!Array.isArray(arr) || arr.length === 0) continue;
 
       for (const r of arr) {
-        // 🔎 Regola settimanale (Opzione A): assegna il job alla settimana della
-        // DATA DI FINE (readydate/readytime). Se la fine non è presente/valida,
-        // fai fallback alla DATA DI INIZIO (startdate/starttime).
+        // 🔎 Opzione A: assegna alla settimana della DATA DI FINE; fallback alla DATA DI INIZIO
         const tsEnd   = toMillis(r.readydate, r.readytime);
         const tsStart = toMillis(r.startdate, r.starttime);
         const ts = (!isNaN(tsEnd) && tsEnd) ? tsEnd
                  : (!isNaN(tsStart) && tsStart ? tsStart : NaN);
 
-        const d = !isNaN(ts) ? new Date(ts) : new Date();
-        const w = getISOWeek(d);
-        const y = getISOWeekYear(d);
-        if (w === Number(week) && y === Number(year)) allRows.push({ ...r });
+        if (!isNaN(ts)) {
+          const d = new Date(ts);
+          const w = getISOWeek(d);
+          const y = getISOWeekYear(d);
+          if (w === Number(week) && y === Number(year)) allRows.push({ ...r });
+        }
       }
+    } // ← chiusura corretta del for (files)
 
     // 3) scrivi SOLO il nuovo unificato
     const weeklyFile = path.join(reportGeneralePath, `Reportgenerali_Arizona_${week}_${year}.json`);
