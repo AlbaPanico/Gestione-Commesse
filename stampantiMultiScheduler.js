@@ -105,7 +105,9 @@ async function rigeneraSettimana(week, year) {
       if (!Array.isArray(arr) || arr.length === 0) continue;
 
       for (const r of arr) {
-        // ✅ NUOVO: priorità alla FINE; fallback all'INIZIO
+        // 🔎 Regola settimanale (Opzione A): assegna il job alla settimana della
+        // DATA DI FINE (readydate/readytime). Se la fine non è presente/valida,
+        // fai fallback alla DATA DI INIZIO (startdate/starttime).
         const tsEnd   = toMillis(r.readydate, r.readytime);
         const tsStart = toMillis(r.startdate, r.starttime);
         const ts = (!isNaN(tsEnd) && tsEnd) ? tsEnd
@@ -116,7 +118,6 @@ async function rigeneraSettimana(week, year) {
         const y = getISOWeekYear(d);
         if (w === Number(week) && y === Number(year)) allRows.push({ ...r });
       }
-    }
 
     // 3) scrivi SOLO il nuovo unificato
     const weeklyFile = path.join(reportGeneralePath, `Reportgenerali_Arizona_${week}_${year}.json`);
@@ -283,14 +284,16 @@ async function generaReportDaAclFile(aclFilePath, _outputJsonPathIgnored, monito
     const tStart = toMillis(sd, st);
     const tEnd   = toMillis(rd, rt);
 
-    // Usa la settimana della FINE; se manca, usa INIZIO
+    // 🔎 Regola settimanale: assegnazione per DATA DI FINE (readydate/readytime).
+    // Se la fine manca, fallback alla data di inizio. Scriviamo SOLO sul file della
+    // settimana corrente (week/year passati in input).
     const recTs = (!isNaN(tEnd) && tEnd) ? tEnd
                  : (!isNaN(tStart) && tStart ? tStart : NaN);
     const recDate = !isNaN(recTs) ? new Date(recTs) : new Date();
     const recW = getISOWeek(recDate);
     const recY = getISOWeekYear(recDate);
     if (recW !== week || recY !== year) {
-      // file delle settimane passate NON deve più essere toccato
+      // Evitiamo di modificare file di settimane diverse (append-only sulla settimana target).
       continue;
     }
 
@@ -453,8 +456,18 @@ async function cicloStampanti() {
   const printers = settings.printers || [];
   const monitorJsonPath = settings.monitorJsonPath || "";
 
+  // 1) Scarica ed elabora gli ACL per tutte le stampanti
   for (const printer of printers) {
     await processPrinter(printer, monitorJsonPath);
+  }
+
+  // 2) Subito dopo, aggiorna i JSON per-stampante con:
+  //    - Costo Inchiostro (sempre)
+  //    - consumo_kwh per copia se mancante (per coerenza)
+  try {
+    await generaReportGenerali();
+  } catch (e) {
+    console.warn('[cicloStampanti] Warning in generaReportGenerali:', e?.message || String(e));
   }
 }
 
