@@ -73,8 +73,10 @@ const HEADER_MAP = {
 
 export default function Stampanti({ onBack }) {
   const [monitorJsonPath, setMonitorJsonPath] = useState("");
-  const [reportGeneralePath, setReportGeneralePath] = useState("");
-  const [stampanti, setStampanti] = useState([]);
+const [reportGeneralePath, setReportGeneralePath] = useState("");
+const [storicoConsumiUrl, setStoricoConsumiUrl] = useState("");
+const [stampanti, setStampanti] = useState([]);
+
   const [printerRows, setPrinterRows] = useState([]);
   const [jobSearch, setJobSearch] = useState("");   // 🔍 testo “cerca lavoro”
   const [loading, setLoading] = useState(true);
@@ -89,16 +91,18 @@ export default function Stampanti({ onBack }) {
   const [selectedYear, setSelectedYear] = useState(null);
 
   // Carica impostazioni stampanti
-  useEffect(() => {
-    fetch(`${SERVER}/api/stampanti/settings`)
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data.printers)) setStampanti(data.printers);
-        if (data.monitorJsonPath) setMonitorJsonPath(data.monitorJsonPath);
-        if (data.reportGeneralePath) setReportGeneralePath(data.reportGeneralePath);
-      })
-      .catch(console.error);
-  }, []);
+ useEffect(() => {
+  fetch(`${SERVER}/api/stampanti/settings`)
+    .then(res => res.json())
+    .then(data => {
+      if (Array.isArray(data.printers)) setStampanti(data.printers);
+      if (data.monitorJsonPath) setMonitorJsonPath(data.monitorJsonPath);
+      if (data.reportGeneralePath) setReportGeneralePath(data.reportGeneralePath);
+      if (data.storicoConsumiUrl) setStoricoConsumiUrl(data.storicoConsumiUrl);
+    })
+    .catch(console.error);
+}, []);
+
 
   // Carica le settimane disponibili al primo render
   useEffect(() => {
@@ -634,7 +638,8 @@ export default function Stampanti({ onBack }) {
     style={btnStyle}
     onMouseOver={e => Object.assign(e.currentTarget.style, btnHover)}
     onMouseOut={e => Object.assign(e.currentTarget.style, btnStyle)}
-    onClick={() => window.open("http://192.168.1.250:3000/storico", "_blank")}
+    onClick={() => window.open((storicoConsumiUrl || "http://192.168.1.250:3000/storico"), "_blank")}
+    title={storicoConsumiUrl ? storicoConsumiUrl : "http://192.168.1.250:3000/storico"}
   >
     Storico Consumi
   </button>
@@ -649,19 +654,23 @@ export default function Stampanti({ onBack }) {
 </div>
 
 
+
       {isNewSlide && (
-        <NewSlide
-          printers={stampanti}
-          monitorJsonPath={monitorJsonPath}
-          reportGeneralePath={reportGeneralePath}
-          onClose={({ printers, monitor, reportGenerale }) => {
-            setIsNewSlide(false);
-            if (Array.isArray(printers)) setStampanti(printers);
-            if (monitor) setMonitorJsonPath(monitor.replace(/"/g, "").trim());
-            if (reportGenerale) setReportGeneralePath(reportGenerale.replace(/"/g, "").trim());
-          }}
-        />
-      )}
+  <NewSlide
+    printers={stampanti}
+    monitorJsonPath={monitorJsonPath}
+    reportGeneralePath={reportGeneralePath}
+    storicoConsumiUrl={storicoConsumiUrl}
+    onClose={({ printers, monitor, reportGenerale, storico }) => {
+      setIsNewSlide(false);
+      if (Array.isArray(printers)) setStampanti(printers);
+      if (monitor) setMonitorJsonPath(monitor.replace(/"/g, "").trim());
+      if (reportGenerale) setReportGeneralePath(reportGenerale.replace(/"/g, "").trim());
+      if (typeof storico === "string") setStoricoConsumiUrl(storico.replace(/"/g, "").trim());
+    }}
+  />
+)}
+
     </div>
   );
 }
