@@ -39,12 +39,13 @@ export default function NewSlide({
 
   // Gestione ESC
   useEffect(() => {
-    const handleKey = e => {
-      if (e.key === "Escape") saveSettingsAndClose();
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [stampanti, monitor, reportGenerale]);
+  const handleKey = e => {
+    if (e.key === "Escape") saveSettingsAndClose();
+  };
+  window.addEventListener("keydown", handleKey);
+  return () => window.removeEventListener("keydown", handleKey);
+}, [stampanti, monitor, reportGenerale, storicoConsumi]);
+
 
   // Chiudi se clicchi fuori dal pannello
   const handleOverlayClick = e => {
@@ -70,11 +71,12 @@ export default function NewSlide({
     .then(res => res.json())
     .then(() => {
       onClose({
-        printers: stampanti,
-        monitor: monitorClean,
-        reportGenerale: reportClean,
-        storico: storicoClean
-      });
+  printers: stampanti,
+  monitor: monitorClean,
+  reportGenerale: reportClean,
+  storicoConsumiUrl: storicoClean
+});
+
     })
     .catch(err => {
       alert("Errore nel salvataggio delle impostazioni: " + err);
