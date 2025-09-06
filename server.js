@@ -1437,11 +1437,11 @@ app.post('/api/stampanti/settings', (req, res) => {
       reportGeneralePath: b.reportGeneralePath ?? existing.reportGeneralePath ?? '',
 
       // nuovi: costi inchiostri ed energia + policy di calcolo
-      inkCosts: b.inkCosts ?? existing.inkCosts,                         // es: { C:0.18, M:0.18, Y:0.18, K:0.18, W:0.25 }
+      inkCosts: b.inkCosts ?? existing.inkCosts,                         // { C,M,Y,K,W,... }
       energyCostPerKwh: (typeof b.energyCostPerKwh === 'number') ? b.energyCostPerKwh : (existing.energyCostPerKwh ?? 0.25),
       defaultPowerKw: (typeof b.defaultPowerKw === 'number') ? b.defaultPowerKw : (existing.defaultPowerKw ?? 2.4),
-      powerKwByPrinter: b.powerKwByPrinter ?? existing.powerKwByPrinter, // es: { "Arizona 1380": 2.8 }
-      metricsPolicy: b.metricsPolicy ?? existing.metricsPolicy           // vedi endpoint /api/stampanti/metrics
+      powerKwByPrinter: b.powerKwByPrinter ?? existing.powerKwByPrinter, // { "Arizona 1380": 2.8, ... }
+      metricsPolicy: b.metricsPolicy ?? existing.metricsPolicy           // vedi /api/stampanti/metrics
     };
 
     fs.writeFileSync(file, JSON.stringify(merged, null, 2));
@@ -1450,6 +1450,296 @@ app.post('/api/stampanti/settings', (req, res) => {
     res.status(500).json({ error: err.toString() });
   }
 });
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Stampanti – metriche per CSV più recente (PRIMA/Dopo)
+// ───────────────────────────────────────────────────────────────────────────────
+app.get('/api/stampanti/metrics', (req, res) => {
+  const folder = req.query.folder;
+  if (!folder) return res.status(400).json({ error: 'folder missing' });
+
+  try {
+    const files = fs.readdirSync(folder).filter(f => f.toLowerCase().endsWith('.csv'));
+    if (!files.length) {
+      return res.json({
+        ok: true,
+        policyApplied: null,
+        totals: {
+          prima:  { inkMl: {}, inkMlTotal: 0, inkCostEur: 0, kwh: 0, energyCostEur: 0, grandTotalEur: 0 },
+          dopo:   { inkMl: {}, inkMlTotal: 0, inkCostEur: 0, kwh: 0, energyCostEur: 0, grandTotalEur: 0 }
+        },
+        rows: []
+      });
+    }
+
+    const latest = files.map(name => ({ name, mtime: fs.statSync(path.join(folder, name)).mtimeMs }))
+      .sort((a, b) => b.mtime - a.mtime)[0].name;
+
+    const csv = fs.readFileSync(path.join(folder, latest), 'utf8').trim();
+
+    // === SETTINGS =============================================================
+    const settingsPath = path.join(__dirname, 'data', 'stampantiSettings.json');
+    let S = {};
+    try { if (fs.existsSync(settingsPath)) S = JSON.parse(fs.readFileSync(settingsPath, 'utf8') || '{}'); } catch {}
+    const INK_COSTS = Object.assign({
+      C: 0.18, M: 0.18, Y: 0.18, K: 0.18, W: 0.25,
+      VARNISH: 0.20, PRIMER: 0.35, ORANGE: 0.30, VIOLET: 0.30, OTHER: 0.18
+    }, S.inkCosts || {});
+
+    const POLICY = S.metricsPolicy || {};
+    const POL_INK = POLICY.ink || {};
+    const POL_EN  = POLICY.energy || {};
+    const POL_ROUND = POLICY.rounding || {};
+    const CURRENCY = POLICY.currency || 'EUR';
+
+    const ENERGY_COST = (typeof S.energyCostPerKwh === 'number') ? S.energyCostPerKwh : 0.25;
+    const DEFAULT_POWER_KW =
+      (typeof POL_EN.defaultPowerKw === 'number') ? POL_EN.defaultPowerKw :
+      (typeof S.defaultPowerKw === 'number' ? S.defaultPowerKw : 2.4);
+    const POWER_BY_PRINTER = S.powerKwByPrinter || {};
+
+    // === UTIL ================================================================
+    const parseNum = (v) => {
+      if (typeof v === 'number') return isFinite(v) ? v : 0;
+      if (!v) return 0;
+      const n = Number(String(v).trim().replace(/\s+/g,'').replace(/\./g,'').replace(/,/g,'.'));
+      return isFinite(n) ? n : 0;
+    };
+    const detectDelimiter = (line) => {
+      const s = (line.match(/;/g) || []).length;
+      const c = (line.match(/,/g) || []).length;
+      return s >= c ? ';' : ',';
+    };
+    const lines = csv.split(/\r?\n/).filter(l => l.trim() !== '');
+    const delimiter = detectDelimiter(lines[0]);
+    const headers = lines[0].split(delimiter).map(h => h.trim());
+    const HLOW = headers.map(h => h.toLowerCase());
+    const rows = lines.slice(1).map(line => {
+      const cols = line.split(delimiter).map(f => f?.trim());
+      const o = {}; headers.forEach((h, i) => { o[h] = cols[i] ?? ''; });
+      return o;
+    });
+    const idxOf = (name) => {
+      if (!name) return -1;
+      const n = String(name).toLowerCase();
+      return HLOW.findIndex(h => h === n || h.includes(n));
+    };
+
+    const parseDurationHours = (v) => {
+      if (!v) return 0;
+      const s = String(v).trim();
+      const hm = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+      if (hm) {
+        const h = parseInt(hm[1],10)||0, m=parseInt(hm[2],10)||0, sec=parseInt(hm[3]||'0',10)||0;
+        return h + m/60 + sec/3600;
+      }
+      const u = s.toLowerCase().replace(',', '.');
+      const n = parseFloat(u.replace(/[^\d.]/g, '')) || 0;
+      if (/\bh\b|ora|ore/.test(u)) return n;
+      if (/\bm\b|min/.test(u)) return n/60;
+      if (/\bs\b|sec/.test(u)) return n/3600;
+      return n > 10 ? n/60 : n;
+    };
+
+    const rMoney = (v) => Number(v.toFixed(POL_ROUND.money ?? 2));
+    const rKwh   = (v) => Number(v.toFixed(POL_ROUND.kwh ?? 3));
+
+    // === INK ==================================================================
+    const INK_MODE = (POL_INK.mode || 'auto').toLowerCase();
+    const COLOR_MAP = POL_INK.colorColumns || {};      // per mode="columns"
+    const INK_TOTAL_COL = POL_INK.totalColumn || null; // per mode="total"
+    const AVG_PRICE_PER_ML =
+      (typeof POL_INK.avgPricePerMl === 'number' && POL_INK.avgPricePerMl >= 0)
+        ? POL_INK.avgPricePerMl
+        : (() => {
+            const vals = Object.values(INK_COSTS).filter(v => typeof v === 'number' && isFinite(v));
+            return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length) : 0.20;
+          })();
+
+    const COLOR_KEYS = {
+      C: ['c','cyan'], M: ['m','magenta'], Y: ['y','yellow','giallo'],
+      K: ['k','black','nero','bk'], W: ['w','white','bianco'],
+      VARNISH:['varnish','clear','vernice'], PRIMER:['primer'],
+      ORANGE:['orange','arancio'], VIOLET:['violet','viola']
+    };
+    const isMlColumn = (h) => /\bml\b|inchiostr|ink/.test(h.toLowerCase());
+    const tokenize = (s) => String(s).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+    const matchColor = (h) => {
+      const toks = tokenize(h);
+      for (const [col, keys] of Object.entries(COLOR_KEYS)) {
+        if (toks.some(t => keys.includes(t))) return col;
+      }
+      return null;
+    };
+
+    // === ENERGY ===============================================================
+    const EN_MODE = (POL_EN.mode || 'auto').toLowerCase();
+    const KWH_COL_NAME   = POL_EN.kwhColumn || null;
+    const TIME_COL_NAME  = POL_EN.timeColumn || null;
+    const POWER_COL_NAME = POL_EN.powerKwColumn || null;
+
+    const TIME_COLS_AUTO  = HLOW.map((hl,i)=>(/durata|tempo|time|runtime|stampa|lavor|exec/.test(hl)?headers[i]:null)).filter(Boolean);
+    const KWH_COLS_AUTO   = HLOW.map((hl,i)=>(/\bkwh\b|kw\/h|kw h|consumo.*kw/.test(hl)?headers[i]:null)).filter(Boolean);
+    const POWER_COLS_AUTO = HLOW.map((hl,i)=>(/\bkw\b|potenza|power/.test(hl)?headers[i]:null)).filter(Boolean);
+    const PRINTER_COLS    = HLOW.map((hl,i)=>(/stampante|printer|device|macchina/.test(hl)?headers[i]:null)).filter(Boolean);
+
+    // === PER-RIGA (prima/dopo) ===============================================
+    const perRow = rows.map((r, index) => {
+      // --- INK ---
+      const inkMlByColor = {};
+      let inkMlTotal = 0;
+      let inkCost = 0;
+
+      if (INK_MODE === 'columns' && Object.keys(COLOR_MAP).length) {
+        for (const [col, colName] of Object.entries(COLOR_MAP)) {
+          const i = idxOf(colName);
+          if (i >= 0) {
+            const ml = parseNum(r[headers[i]]);
+            if (ml) {
+              inkMlByColor[col] = (inkMlByColor[col] || 0) + ml;
+              inkMlTotal += ml;
+            }
+          }
+        }
+        for (const [col, ml] of Object.entries(inkMlByColor)) {
+          const price = INK_COSTS[col] ?? INK_COSTS.OTHER;
+          inkCost += ml * price;
+        }
+      } else if (INK_MODE === 'total' && INK_TOTAL_COL) {
+        const i = idxOf(INK_TOTAL_COL);
+        const totalMl = i >= 0 ? parseNum(r[headers[i]]) : 0;
+        inkMlTotal = totalMl || 0;
+        inkCost = (totalMl || 0) * AVG_PRICE_PER_ML;
+      } else {
+        headers.forEach((h) => {
+          if (!isMlColumn(h)) return;
+          const col = matchColor(h) || 'OTHER';
+          const ml = parseNum(r[h]);
+          if (!ml) return;
+          inkMlByColor[col] = (inkMlByColor[col] || 0) + ml;
+          inkMlTotal += ml;
+        });
+        for (const [col, ml] of Object.entries(inkMlByColor)) {
+          const price = INK_COSTS[col] ?? INK_COSTS.OTHER;
+          inkCost += ml * price;
+        }
+      }
+
+      // --- ENERGY ---
+      let kwh = 0;
+      if (EN_MODE === 'csv_kwh') {
+        const i = idxOf(KWH_COL_NAME || 'kwh');
+        kwh = i >= 0 ? parseNum(r[headers[i]]) : 0;
+      } else if (EN_MODE === 'time_power') {
+        let hours = 0;
+        const ti = idxOf(TIME_COL_NAME);
+        if (ti >= 0) hours = parseDurationHours(r[headers[ti]]);
+        let powerKw = DEFAULT_POWER_KW;
+        const pi = idxOf(POWER_COL_NAME);
+        if (pi >= 0) {
+          const v = parseNum(r[headers[pi]]);
+          if (v) powerKw = v;
+        } else if (PRINTER_COLS.length) {
+          const device = String(r[PRINTER_COLS[0]] || '').trim();
+          if (device && POWER_BY_PRINTER[device] != null) powerKw = Number(POWER_BY_PRINTER[device]) || powerKw;
+        }
+        if (hours && powerKw) kwh = hours * powerKw;
+      } else { // AUTO
+        let found = false;
+        for (const kcol of KWH_COLS_AUTO) {
+          const v = parseNum(r[kcol]);
+          if (v) { kwh = v; found = true; break; }
+        }
+        if (!found) {
+          let hours = 0;
+          for (const tcol of TIME_COLS_AUTO) {
+            const h = parseDurationHours(r[tcol]);
+            if (h) { hours = h; break; }
+          }
+          let powerKw = DEFAULT_POWER_KW;
+          let pFromRow = 0;
+          for (const pcol of POWER_COLS_AUTO) {
+            const v = parseNum(r[pcol]);
+            if (v) { pFromRow = v; break; }
+          }
+          if (pFromRow) powerKw = pFromRow;
+          else if (PRINTER_COLS.length) {
+            const device = String(r[PRINTER_COLS[0]] || '').trim();
+            if (device && POWER_BY_PRINTER[device] != null) {
+              powerKw = Number(POWER_BY_PRINTER[device]) || powerKw;
+            }
+          }
+          if (hours && powerKw) kwh = hours * powerKw;
+        }
+      }
+
+      // ===== PRIMA (grezzo) =====
+      const prima = {
+        inkMlByColor: { ...inkMlByColor },
+        inkMlTotal,
+        inkCostEur: inkCost,
+        kwh,
+        energyCostEur: kwh * ENERGY_COST,
+      };
+      const primaGrand = prima.inkCostEur + prima.energyCostEur;
+
+      // ===== DOPO (arrotondato) =====
+      const dopo = {
+        inkMlByColor: { ...inkMlByColor },
+        inkMlTotal,
+        inkCostEur: rMoney(prima.inkCostEur),
+        kwh: rKwh(prima.kwh),
+        energyCostEur: rMoney(prima.energyCostEur),
+      };
+      const dopoGrand = dopo.inkCostEur + dopo.energyCostEur;
+
+      return {
+        index,
+        currency: CURRENCY,
+        prima: { ...prima, grandTotalEur: primaGrand },
+        dopo:  { ...dopo,  grandTotalEur: rMoney(dopoGrand) }
+      };
+    });
+
+    // === TOTALI ===============================================================
+    const totalsPrima = perRow.reduce((acc, r) => {
+      Object.entries(r.prima.inkMlByColor).forEach(([k,v]) => acc.inkMl[k] = (acc.inkMl[k] || 0) + v);
+      acc.inkMlTotal    += r.prima.inkMlTotal;
+      acc.inkCostEur    += r.prima.inkCostEur;
+      acc.kwh           += r.prima.kwh;
+      acc.energyCostEur += r.prima.energyCostEur;
+      acc.grandTotalEur += r.prima.grandTotalEur;
+      return acc;
+    }, { inkMl: {}, inkMlTotal: 0, inkCostEur: 0, kwh: 0, energyCostEur: 0, grandTotalEur: 0 });
+
+    const totalsDopo = {
+      inkMl: { ...totalsPrima.inkMl },
+      inkMlTotal: totalsPrima.inkMlTotal,
+      inkCostEur: rMoney(totalsPrima.inkCostEur),
+      kwh: rKwh(totalsPrima.kwh),
+      energyCostEur: rMoney(totalsPrima.energyCostEur),
+      grandTotalEur: rMoney(totalsPrima.grandTotalEur)
+    };
+
+    const policyApplied = {
+      inkMode: (POL_INK.mode || 'auto').toLowerCase(),
+      inkColorColumns: POL_INK.colorColumns || null,
+      inkTotalColumn: POL_INK.totalColumn || null,
+      avgPricePerMl: (typeof POL_INK.avgPricePerMl === 'number') ? POL_INK.avgPricePerMl : null,
+      energyMode: (POL_EN.mode || 'auto').toLowerCase(),
+      kwhColumn: POL_EN.kwhColumn || null,
+      timeColumn: POL_EN.timeColumn || null,
+      powerKwColumn: POL_EN.powerKwColumn || null,
+      defaultPowerKw: DEFAULT_POWER_KW,
+      currency: CURRENCY,
+      rounding: { money: POL_ROUND.money ?? 2, kwh: POL_ROUND.kwh ?? 3 }
+    };
+
+    // Log rapido
+    try {
+      const logDir = path.join(__dirname, 'data');
+      if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, {
+
 
 
 // storico settimanale
