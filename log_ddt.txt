@@ -68,3 +68,35 @@ reportDdtPath']
 [2025-09-08 10:01:43] DEBUG dedupe: sovrascrivo riga esistente 14 per DDT 0090W
 [2025-09-08 10:01:43] DEBUG prezzoVendita ricevuto='20.4' -> usato=20.4
 [2025-09-08 10:01:43] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 14) | NomeCommessa='cvt 548 nuova long lasting liquid eyeshadow' | Codice='C4877' | PrezzoVendita=20.4 | PDF_IN='DDT_0090W_C4877_08-09-2025.pdf'
+[2025-09-08 13:36:54] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita', 'reportDdtPath']
+[2025-09-08 13:36:54] DEBUG nomeCommessa='PUPA_tegolino compensazione M1_P_C4960' descrizione='Assembraggio PUPA_tegolino compensazione M1_P_C4960'
+[2025-09-08 13:36:54] DEBUG nomeCommessa='PUPA_tegolino compensazione M1_P_C4960' descrizione='Assembraggio PUPA_tegolino compensazione M1_P_C4960'
+[2025-09-08 13:36:54] DEBUG estrazione: sorgente='Assembraggio PUPA_tegolino compensazione M1_P_C4960' -> estratto='tegolino compensazione M1'
+[2025-09-08 13:36:54] DEBUG estrazione: sorgente='Assembraggio PUPA_tegolino compensazione M1_P_C4960' -> estratto='tegolino compensazione M1'
+[2025-09-08 13:36:54] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\PUPA_tegolino compensazione M1_P_C4960\MATERIALI' esiste=True
+[2025-09-08 13:36:54] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\PUPA_tegolino compensazione M1_P_C4960\MATERIALI' esiste=True
+[2025-09-08 13:36:54] DEBUG codice_commessa_norm='C4960' (raw='C4960')
+[2025-09-08 13:36:54] DEBUG codice_commessa_norm='C4960' (raw='C4960')
+[2025-09-08 13:36:54] DEBUG MATERIALI contiene (3 file): DDT_0091W_C4960_08-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_PUPA_tegolino compensazione M1_P_C4960.xlsx
+[2025-09-08 13:36:54] DEBUG match regex ENTRATA: DDT_0091W_C4960_08-09-2025.pdf
+[2025-09-08 13:36:54] DEBUG MATERIALI contiene (3 file): DDT_0091W_C4960_08-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_PUPA_tegolino compensazione M1_P_C4960.xlsx
+[2025-09-08 13:36:54] DEBUG match regex ENTRATA: DDT_0091W_C4960_08-09-2025.pdf
+[2025-09-08 13:36:54] DEBUG MATERIALI contiene (3 file): DDT_0091W_C4960_08-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_PUPA_tegolino compensazione M1_P_C4960.xlsx
+[2025-09-08 13:36:54] DEBUG MATERIALI contiene (3 file): DDT_0091W_C4960_08-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_PUPA_tegolino compensazione M1_P_C4960.xlsx
+[2025-09-08 13:36:54] DEBUG dedupe: nessuna riga esistente, scrivo in nuova riga 15
+[2025-09-08 13:36:54] DEBUG prezzoVendita ricevuto='0' -> usato=0.0
+[2025-09-08 13:36:54] DEBUG dedupe: nessuna riga esistente, scrivo in nuova riga 15
+[2025-09-08 13:36:54] DEBUG prezzoVendita ricevuto='0' -> usato=0.0
+[2025-09-08 13:36:54] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 15) | NomeCommessa='tegolino compensazione M1' | Codice='C4960' | PrezzoVendita=0.0 | PDF_IN='DDT_0091W_C4960_08-09-2025.pdf'
+[2025-09-08 13:36:54] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 15) | NomeCommessa='tegolino compensazione M1' | Codice='C4960' | PrezzoVendita=0.0 | PDF_IN='DDT_0091W_C4960_08-09-2025.pdf'
+[2025-09-08 13:36:55] DEBUG DATI keys=['codiceCommessa', 'quantita', 'folderPath', 'colli', 'oreLavorazione', 'nomeCommessa', 'prezzoVendita', 'descrizione']
+[2025-09-08 13:36:55] DEBUG nomeCommessa='PUPA_tegolino compensazione M1_P_C4960' descrizione='Assembraggio PUPA_tegolino compensazione M1_P_C4960'
+[2025-09-08 13:36:55] DEBUG estrazione: sorgente='Assembraggio PUPA_tegolino compensazione M1_P_C4960' -> estratto='tegolino compensazione M1'
+[2025-09-08 13:36:55] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\PUPA_tegolino compensazione M1_P_C4960\MATERIALI' esiste=True
+[2025-09-08 13:36:55] DEBUG codice_commessa_norm='C4960' (raw='C4960')
+[2025-09-08 13:36:55] DEBUG MATERIALI contiene (3 file): DDT_0091W_C4960_08-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_PUPA_tegolino compensazione M1_P_C4960.xlsx
+[2025-09-08 13:36:55] DEBUG match regex ENTRATA: DDT_0091W_C4960_08-09-2025.pdf
+[2025-09-08 13:36:55] DEBUG MATERIALI contiene (3 file): DDT_0091W_C4960_08-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_PUPA_tegolino compensazione M1_P_C4960.xlsx
+[2025-09-08 13:36:55] DEBUG dedupe: sovrascrivo riga esistente 15 per DDT 0091W
+[2025-09-08 13:36:55] DEBUG prezzoVendita ricevuto='' -> usato=0.0
+[2025-09-08 13:36:55] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 15) | NomeCommessa='tegolino compensazione M1' | Codice='C4960' | PrezzoVendita=0.0 | PDF_IN='DDT_0091W_C4960_08-09-2025.pdf'
