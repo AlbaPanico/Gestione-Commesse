@@ -5,7 +5,6 @@ import React, { useEffect, useMemo, useState } from "react";
 async function safeFetchJson(input, init) {
   const res = await fetch(input, init);
   const ct = res.headers.get("content-type") || "";
-  // Se il server non risponde JSON evito di fare res.json()
   if (!ct.toLowerCase().includes("application/json")) {
     const text = await res.text();
     return { __nonJson: true, ok: res.ok, status: res.status, text };
@@ -14,47 +13,51 @@ async function safeFetchJson(input, init) {
   return { ok: res.ok, status: res.status, data };
 }
 
-export default function NewSlideProtek({ onSaved, onClose }) {
+export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
+  // Modalità pannello quando aperto dall’ingranaggio
+  const panelMode = (typeof asPanel === "boolean") ? asPanel : (typeof onClose === "function");
+
   // UI state
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");   // ← FIX refuso
+  const [error, setError] = useState("");   // FIX refuso
   const [info, setInfo] = useState("");
 
   // settings
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [monitorPath, setMonitorPath] = useState("");   // UNC folder con i CSV
-  const [pantografi, setPantografi] = useState([]);     // opzionale: array di nomi/ID macchina
+  const [pantografi, setPantografi] = useState([]);     // opzionale
 
-  // data
+  // data solo per la vista “pagina autonoma”
   const [jobs, setJobs] = useState([]);
   const [meta, setMeta] = useState(null);
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Carica impostazioni all'avvio
+  async function reloadSettingsFromServer() {
+    const r = await safeFetchJson("/api/protek/settings");
+    if (r.__nonJson) {
+      setError("Impossibile leggere le impostazioni Protek (risposta non JSON).");
+      return;
+    }
+    if (!r.ok) {
+      setError("Errore nel recupero impostazioni Protek.");
+      return;
+    }
+    const s = r.data || {};
+    setMonitorPath(s.monitorPath || "");
+    setPantografi(Array.isArray(s.pantografi) ? s.pantografi : []);
+  }
+
+  // Carica impostazioni all'avvio (+ jobs se NON pannello)
   useEffect(() => {
     (async () => {
       setError("");
       setInfo("");
-      const r = await safeFetchJson("/api/protek/settings");
-      if (r.__nonJson) {
-        setError("Impossibile leggere le impostazioni Protek (risposta non JSON).");
-        return;
-      }
-      if (!r.ok) {
-        setError("Errore nel recupero impostazioni Protek.");
-        return;
-      }
-      const s = r.data || {};
-      setMonitorPath(s.monitorPath || "");
-      setPantografi(Array.isArray(s.pantografi) ? s.pantografi : []);
-
-      // Se c’è già un monitorPath, proviamo a caricare i jobs
-      if (s.monitorPath) {
+      await reloadSettingsFromServer();
+      if (!panelMode && monitorPath) {
         await loadJobs();
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [panelMode]);
 
   // ────────────────────────────────────────────────────────────────────────────
   async function loadJobs() {
@@ -116,15 +119,17 @@ export default function NewSlideProtek({ onSaved, onClose }) {
         setError("Salvataggio impostazioni: risposta non JSON.");
         return;
       }
-      if (!r.ok || !r.data?.ok) {
+      if (!r.ok /* oppure backend non ha ok */) {
         setError("Errore nel salvataggio impostazioni Protek.");
         return;
       }
+
+      // ✅ dopo il salvataggio rimaniamo nel pannello e ricarichiamo le impostazioni dal server
+      await reloadSettingsFromServer();
       setInfo("Impostazioni salvate.");
-      // Chiudo il pannello e ricarico i dati
-      setSettingsOpen(false);
-      onSaved?.();         // ← NEW: notifica il genitore (es. protek.jsx) per ricaricare
-      await loadJobs();
+      onSaved?.(); // notifica il genitore per ricaricare i dati (protek.jsx)
+
+      // (niente chiusura automatica: l’utente vede subito i campi valorizzati)
     } catch (e) {
       setError(`Errore salvataggio impostazioni: ${String(e)}`);
     }
@@ -134,6 +139,64 @@ export default function NewSlideProtek({ onSaved, onClose }) {
   const totalJobs = useMemo(() => jobs.length, [jobs]);
 
   // ────────────────────────────────────────────────────────────────────────────
+  // RENDER in modalità PANNELLO (solo form impostazioni)
+  if (panelMode) {
+    return (
+      <div className="p-4 flex flex-col gap-4">
+        {error ? (
+          <div className="p-2 rounded bg-red-100 text-red-700 text-sm">{error}</div>
+        ) : null}
+        {info ? (
+          <div className="p-2 rounded bg-blue-100 text-blue-700 text-sm">{info}</div>
+        ) : null}
+
+        <form className="flex flex-col gap-4" onSubmit={saveSettings}>
+          <div>
+            <label className="block text-sm font-medium">
+              Percorso cartella CSV (monitorPath)
+            </label>
+            <input
+              type="text"
+              className="mt-1 w-full border rounded-lg p-2 font-mono"
+              placeholder={`\\\\\\\\192.168.1.248\\\\time dati\\\\ARCHIVIO TECNICO\\\\Esportazioni 4.0\\\\PROTEK\\\\Ricevuti`}
+              value={monitorPath}
+              onChange={(e) => setMonitorPath(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Inserisci il percorso UNC dove si trovano i file CSV di Protek.
+            </p>
+          </div>
+
+          {/* opzionale: gestione elenco pantografi */}
+          <fieldset className="border rounded-lg p-3">
+            <legend className="text-sm font-medium px-1">Pantografi (opzionale)</legend>
+            <PantografiEditor value={pantografi} onChange={setPantografi} />
+          </fieldset>
+
+          <div className="flex items-center gap-2">
+            <button type="submit" className="px-3 py-2 rounded-xl shadow text-sm hover:shadow-md">
+              Salva impostazioni
+            </button>
+            {typeof onClose === "function" && (
+              <button
+                type="button"
+                className="px-3 py-2 rounded-xl text-sm hover:shadow"
+                onClick={() => onClose?.()}
+              >
+                Chiudi
+              </button>
+            )}
+            <div className="text-xs text-gray-500">
+              Dopo il salvataggio i dati restano visibili qui (niente chiusura automatica).
+            </div>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // RENDER pagina autonoma (toolbar + tabella + modale impostazioni interno)
   return (
     <div className="w-full h-full flex flex-col gap-3 p-4">
 
@@ -157,8 +220,6 @@ export default function NewSlideProtek({ onSaved, onClose }) {
           >
             {loading ? "Carico..." : "Aggiorna"}
           </button>
-
-          {/* opzionale: pulsante di chiusura quando usato come “slide”/modale */}
           {typeof onClose === "function" && (
             <button
               className="px-3 py-1 rounded-xl text-sm hover:shadow"
@@ -249,66 +310,6 @@ export default function NewSlideProtek({ onSaved, onClose }) {
 
       {/* Footer piccolo */}
       <div className="text-xs text-gray-500">Totale jobs: <b>{totalJobs}</b></div>
-
-      {/* ─────────── PANNELLO IMPOSTAZIONI (uguale a prima, con pulsante Chiudi) ─────────── */}
-      {settingsOpen && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-[1px] flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-[min(800px,94vw)] max-h-[90vh] overflow-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b">
-              <div className="text-lg font-semibold">Impostazioni Protek</div>
-              <button
-                className="px-3 py-1 rounded-xl shadow text-sm hover:shadow-md"
-                onClick={() => setSettingsOpen(false)}
-                title="Chiudi impostazioni"
-              >
-                Chiudi
-              </button>
-            </div>
-
-            {/* Corpo */}
-            <form className="p-4 flex flex-col gap-4" onSubmit={saveSettings}>
-              <div>
-                <label className="block text-sm font-medium">
-                  Percorso cartella CSV (monitorPath)
-                </label>
-                <input
-                  type="text"
-                  className="mt-1 w-full border rounded-lg p-2 font-mono"
-                  placeholder={`\\\\\\\\192.168.1.248\\\\time dati\\\\ARCHIVIO TECNICO\\\\Esportazioni 4.0\\\\PROTEK\\\\Ricevuti`}
-                  value={monitorPath}
-                  onChange={(e) => setMonitorPath(e.target.value)}
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Inserisci il percorso UNC dove si trovano i file CSV di Protek.
-                </p>
-              </div>
-
-              {/* opzionale: gestione elenco pantografi */}
-              <fieldset className="border rounded-lg p-3">
-                <legend className="text-sm font-medium px-1">Pantografi (opzionale)</legend>
-                <PantografiEditor value={pantografi} onChange={setPantografi} />
-              </fieldset>
-
-              <div className="flex items-center gap-2">
-                <button type="submit" className="px-3 py-2 rounded-xl shadow text-sm hover:shadow-md">
-                  Salva impostazioni
-                </button>
-                <button
-                  type="button"
-                  className="px-3 py-2 rounded-xl text-sm hover:shadow"
-                  onClick={() => setSettingsOpen(false)}
-                >
-                  Annulla
-                </button>
-                <div className="text-xs text-gray-500">
-                  Dopo il salvataggio la finestra si chiude e i dati vengono ricaricati.
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
