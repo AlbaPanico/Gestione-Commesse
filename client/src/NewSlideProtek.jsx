@@ -19,8 +19,11 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
 
   // UI state
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");   // FIX refuso
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [success, setSuccess] = useState("");
+  const [lastSavedAt, setLastSavedAt] = useState("");
 
   // settings
   const [monitorPath, setMonitorPath] = useState("");   // UNC folder con i CSV
@@ -51,6 +54,7 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
     (async () => {
       setError("");
       setInfo("");
+      setSuccess("");
       await reloadSettingsFromServer();
       if (!panelMode && monitorPath) {
         await loadJobs();
@@ -64,6 +68,7 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
     setLoading(true);
     setError("");
     setInfo("");
+    setSuccess("");
     try {
       const r = await safeFetchJson("/api/protek/jobs");
       if (r.__nonJson) {
@@ -101,6 +106,7 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
     e?.preventDefault?.();
     setError("");
     setInfo("");
+    setSuccess("");
 
     if (!monitorPath || !monitorPath.trim()) {
       setError("Inserisci il percorso cartella CSV (monitorPath).");
@@ -110,6 +116,7 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
     const body = { monitorPath: monitorPath.trim(), pantografi };
 
     try {
+      setSaving(true);
       const r = await safeFetchJson("/api/protek/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -119,19 +126,23 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
         setError("Salvataggio impostazioni: risposta non JSON.");
         return;
       }
-      if (!r.ok /* oppure backend non ha ok */) {
+      if (!r.ok) {
         setError("Errore nel salvataggio impostazioni Protek.");
         return;
       }
 
       // ✅ dopo il salvataggio rimaniamo nel pannello e ricarichiamo le impostazioni dal server
       await reloadSettingsFromServer();
-      setInfo("Impostazioni salvate.");
-      onSaved?.(); // notifica il genitore per ricaricare i dati (protek.jsx)
 
-      // (niente chiusura automatica: l’utente vede subito i campi valorizzati)
+      const hhmm = new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+      setLastSavedAt(hhmm);
+      setSuccess(`✓ Salvato alle ${hhmm}`);
+      onSaved?.(); // notifica il genitore per ricaricare (protek.jsx)
+
     } catch (e) {
       setError(`Errore salvataggio impostazioni: ${String(e)}`);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -145,6 +156,9 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
       <div className="p-4 flex flex-col gap-4">
         {error ? (
           <div className="p-2 rounded bg-red-100 text-red-700 text-sm">{error}</div>
+        ) : null}
+        {success ? (
+          <div className="p-2 rounded bg-green-100 text-green-700 text-sm">{success}</div>
         ) : null}
         {info ? (
           <div className="p-2 rounded bg-blue-100 text-blue-700 text-sm">{info}</div>
@@ -160,7 +174,11 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
               className="mt-1 w-full border rounded-lg p-2 font-mono"
               placeholder={`\\\\\\\\192.168.1.248\\\\time dati\\\\ARCHIVIO TECNICO\\\\Esportazioni 4.0\\\\PROTEK\\\\Ricevuti`}
               value={monitorPath}
-              onChange={(e) => setMonitorPath(e.target.value)}
+              onChange={(e) => {
+                setSuccess(""); // se l'utente modifica, nascondo il "salvato"
+                setMonitorPath(e.target.value);
+              }}
+              disabled={saving}
             />
             <p className="mt-1 text-xs text-gray-500">
               Inserisci il percorso UNC dove si trovano i file CSV di Protek.
@@ -170,24 +188,33 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
           {/* opzionale: gestione elenco pantografi */}
           <fieldset className="border rounded-lg p-3">
             <legend className="text-sm font-medium px-1">Pantografi (opzionale)</legend>
-            <PantografiEditor value={pantografi} onChange={setPantografi} />
+            <PantografiEditor
+              value={pantografi}
+              onChange={(v) => { setSuccess(""); setPantografi(v); }}
+            />
           </fieldset>
 
           <div className="flex items-center gap-2">
-            <button type="submit" className="px-3 py-2 rounded-xl shadow text-sm hover:shadow-md">
-              Salva impostazioni
+            <button
+              type="submit"
+              className="px-3 py-2 rounded-xl shadow text-sm hover:shadow-md disabled:opacity-60"
+              disabled={saving}
+              title={saving ? "Salvataggio in corso…" : "Salva impostazioni"}
+            >
+              {saving ? "Salvo…" : "Salva impostazioni"}
             </button>
             {typeof onClose === "function" && (
               <button
                 type="button"
                 className="px-3 py-2 rounded-xl text-sm hover:shadow"
                 onClick={() => onClose?.()}
+                disabled={saving}
               >
                 Chiudi
               </button>
             )}
             <div className="text-xs text-gray-500">
-              Dopo il salvataggio i dati restano visibili qui (niente chiusura automatica).
+              {lastSavedAt ? `Ultimo salvataggio: ${lastSavedAt}` : "I dati resteranno memorizzati sul server."}
             </div>
           </div>
         </form>
@@ -197,6 +224,9 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
 
   // ────────────────────────────────────────────────────────────────────────────
   // RENDER pagina autonoma (toolbar + tabella + modale impostazioni interno)
+  // (manteniamo lo stesso comportamento di successo/disabilitazione)
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
   return (
     <div className="w-full h-full flex flex-col gap-3 p-4">
 
@@ -235,6 +265,9 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
       {/* Messaggi stato */}
       {error ? (
         <div className="p-2 rounded bg-red-100 text-red-700 text-sm">{error}</div>
+      ) : null}
+      {success ? (
+        <div className="p-2 rounded bg-green-100 text-green-700 text-sm">{success}</div>
       ) : null}
       {info ? (
         <div className="p-2 rounded bg-blue-100 text-blue-700 text-sm">{info}</div>
@@ -310,6 +343,86 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
 
       {/* Footer piccolo */}
       <div className="text-xs text-gray-500">Totale jobs: <b>{totalJobs}</b></div>
+
+      {/* ─────────── PANNELLO IMPOSTAZIONI (modal interna) ─────────── */}
+      {settingsOpen && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-[1px] flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-[min(800px,94vw)] max-h-[90vh] overflow-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="text-lg font-semibold">Impostazioni Protek</div>
+              <button
+                className="px-3 py-1 rounded-xl shadow text-sm hover:shadow-md"
+                onClick={() => setSettingsOpen(false)}
+                title="Chiudi impostazioni"
+                disabled={saving}
+              >
+                Chiudi
+              </button>
+            </div>
+
+            {/* Corpo */}
+            <form className="p-4 flex flex-col gap-4" onSubmit={saveSettings}>
+              {error ? (
+                <div className="p-2 rounded bg-red-100 text-red-700 text-sm">{error}</div>
+              ) : null}
+              {success ? (
+                <div className="p-2 rounded bg-green-100 text-green-700 text-sm">{success}</div>
+              ) : null}
+              {info ? (
+                <div className="p-2 rounded bg-blue-100 text-blue-700 text-sm">{info}</div>
+              ) : null}
+
+              <div>
+                <label className="block text-sm font-medium">
+                  Percorso cartella CSV (monitorPath)
+                </label>
+                <input
+                  type="text"
+                  className="mt-1 w-full border rounded-lg p-2 font-mono"
+                  placeholder={`\\\\\\\\192.168.1.248\\\\time dati\\\\ARCHIVIO TECNICO\\\\Esportazioni 4.0\\\\PROTEK\\\\Ricevuti`}
+                  value={monitorPath}
+                  onChange={(e) => { setSuccess(""); setMonitorPath(e.target.value); }}
+                  disabled={saving}
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Inserisci il percorso UNC dove si trovano i file CSV di Protek.
+                </p>
+              </div>
+
+              {/* opzionale: gestione elenco pantografi */}
+              <fieldset className="border rounded-lg p-3">
+                <legend className="text-sm font-medium px-1">Pantografi (opzionale)</legend>
+                <PantografiEditor
+                  value={pantografi}
+                  onChange={(v) => { setSuccess(""); setPantografi(v); }}
+                />
+              </fieldset>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="submit"
+                  className="px-3 py-2 rounded-xl shadow text-sm hover:shadow-md disabled:opacity-60"
+                  disabled={saving}
+                >
+                  {saving ? "Salvo…" : "Salva impostazioni"}
+                </button>
+                <button
+                  type="button"
+                  className="px-3 py-2 rounded-xl text-sm hover:shadow"
+                  onClick={() => setSettingsOpen(false)}
+                  disabled={saving}
+                >
+                  Annulla
+                </button>
+                <div className="text-xs text-gray-500">
+                  {lastSavedAt ? `Ultimo salvataggio: ${lastSavedAt}` : "I dati resteranno memorizzati sul server."}
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
