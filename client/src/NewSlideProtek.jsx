@@ -48,6 +48,8 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [verifyStatus, setVerifyStatus] = useState("idle"); // idle | ok | fail
   const [verifyMsg, setVerifyMsg] = useState("");
+  const [verifyDetails, setVerifyDetails] = useState(null); // risposta completa diagnose-path
+  const [verifyOpen, setVerifyOpen] = useState(false);      // mostra/nascondi pannellino dettagli
 
   // settings
   const [monitorPath, setMonitorPath] = useState("");   // UNC folder con i CSV
@@ -123,75 +125,83 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
 
   // ────────────────────────────────────────────────────────────────────────────
   // Verifica percorso con diagnostica completa (usa /api/protek/diagnose-path)
-async function verifyPath() {
-  setVerifyBusy(true);
-  setVerifyStatus("idle");
-  setVerifyMsg("");
-  setError("");
-  try {
-    const pathToTest = (monitorPath || "").trim();
-    if (!pathToTest) {
-      setVerifyStatus("fail");
-      setVerifyMsg("Inserisci un percorso prima di verificare.");
-      return;
-    }
+  async function verifyPath() {
+    setVerifyBusy(true);
+    setVerifyStatus("idle");
+    setVerifyMsg("");
+    setVerifyDetails(null);
+    setVerifyOpen(false);
+    setError("");
+    try {
+      const pathToTest = (monitorPath || "").trim();
+      if (!pathToTest) {
+        setVerifyStatus("fail");
+        setVerifyMsg("Inserisci un percorso prima di verificare.");
+        return;
+      }
 
-    const r = await safeFetchJson("/api/protek/diagnose-path", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
-      body: JSON.stringify({ monitorPath: pathToTest }),
-    });
+      const r = await safeFetchJson("/api/protek/diagnose-path", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({ monitorPath: pathToTest }),
+      });
 
-    // Errore HTTP (404 inesistente, 403 permessi, ecc.)
-    if (!r.ok) {
-      const msg = r.data?.error || `HTTP ${r.status}: percorso non raggiungibile.`;
-      setVerifyStatus("fail");
+      if (!r.ok) {
+        const msg = r.data?.error || `HTTP ${r.status}: percorso non raggiungibile.`;
+        setVerifyStatus("fail");
+        setVerifyMsg(msg);
+        setVerifyDetails(r.data || null);
+        setVerifyOpen(true);
+        return;
+      }
+
+      const d = r.data || {};
+      setVerifyDetails(d);
+
+      if (!d.existsPath) {
+        setVerifyStatus("fail");
+        setVerifyMsg("Percorso inesistente o non raggiungibile dal server.");
+        setVerifyOpen(true);
+        return;
+      }
+      if (!d.canRead) {
+        setVerifyStatus("fail");
+        setVerifyMsg("Accesso negato: controlla i permessi della share sul server.");
+        setVerifyOpen(true);
+        return;
+      }
+
+      const expectedCount = Object.keys(d.files || {}).length;
+      const found = Number(d.readableCount || 0);
+      const missingList = Array.isArray(d.missing) ? d.missing : [];
+
+      if (found === 0) {
+        setVerifyStatus("fail");
+        setVerifyMsg("Cartella raggiunta ma nessun CSV atteso presente.");
+        setVerifyOpen(true);
+        return;
+      }
+
+      let msg = `Valido. Trovati ${found}/${expectedCount} CSV attesi.`;
+      if (missingList.length) {
+        const preview = missingList.slice(0, 3).join(", ");
+        msg += ` Mancano: ${preview}${missingList.length > 3 ? "…" : ""}`;
+      }
+
+      setVerifyStatus("ok");
       setVerifyMsg(msg);
-      return;
-    }
-
-    const d = r.data || {};
-    if (!d.existsPath) {
+      setVerifyOpen(true); // apri direttamente i dettagli al primo check
+    } catch (e) {
       setVerifyStatus("fail");
-      setVerifyMsg("Percorso inesistente o non raggiungibile dal server.");
-      return;
+      setVerifyMsg(String(e));
+      setVerifyOpen(true);
+    } finally {
+      setVerifyBusy(false);
     }
-    if (!d.canRead) {
-      setVerifyStatus("fail");
-      setVerifyMsg("Accesso negato: controlla i permessi della share sul server.");
-      return;
-    }
-
-    const expectedCount = Object.keys(d.files || {}).length;
-    const found = Number(d.readableCount || 0);
-    const missingList = Array.isArray(d.missing) ? d.missing : [];
-
-    if (found === 0) {
-      setVerifyStatus("fail");
-      setVerifyMsg("Cartella raggiunta ma nessun CSV atteso presente.");
-      return;
-    }
-
-    // Messaggio di successo con conteggio e (se presenti) mancanti elencati brevemente
-    let msg = `Valido. Trovati ${found}/${expectedCount} CSV attesi.`;
-    if (missingList.length) {
-      const preview = missingList.slice(0, 3).join(", ");
-      msg += ` Mancano: ${preview}${missingList.length > 3 ? "…" : ""}`;
-    }
-
-    setVerifyStatus("ok");
-    setVerifyMsg(msg);
-  } catch (e) {
-    setVerifyStatus("fail");
-    setVerifyMsg(String(e));
-  } finally {
-    setVerifyBusy(false);
   }
-}
-
 
   // ────────────────────────────────────────────────────────────────────────────
   async function saveSettings(e) {
@@ -271,6 +281,8 @@ async function verifyPath() {
                 setSuccess("");          // se l'utente modifica, nascondo il "salvato"
                 setVerifyStatus("idle"); // reset badge verifica
                 setVerifyMsg("");
+                setVerifyDetails(null);
+                setVerifyOpen(false);
                 setMonitorPath(e.target.value);
               }}
               disabled={saving}
@@ -281,7 +293,7 @@ async function verifyPath() {
                 className="px-2 py-1 rounded border text-sm disabled:opacity-60"
                 onClick={verifyPath}
                 disabled={verifyBusy || saving || !monitorPath.trim()}
-                title="Verifica accessibilità e formato CSV nella cartella indicata"
+                title="Verifica accessibilità e file CSV nella cartella indicata"
               >
                 {verifyBusy ? "Verifico…" : "Verifica percorso"}
               </button>
@@ -302,8 +314,53 @@ async function verifyPath() {
                   In attesa di verifica
                 </span>
               )}
+
+              {(verifyStatus === "ok" || verifyStatus === "fail") && verifyDetails && (
+                <button
+                  type="button"
+                  className="px-2 py-1 rounded border text-xs"
+                  onClick={() => setVerifyOpen(v => !v)}
+                >
+                  {verifyOpen ? "Nascondi dettagli" : "Dettagli"}
+                </button>
+              )}
             </div>
-            <p className="mt-1 text-xs text-gray-500">
+
+            {/* Pannellino dettagli */}
+            {verifyOpen && verifyDetails && (
+              <div className="mt-2 border rounded-lg p-2 text-xs">
+                <div className="mb-1 text-gray-700">
+                  <b>Cartella:</b> <span className="font-mono">{verifyDetails.monitorPath}</span>
+                </div>
+                {!verifyDetails.existsPath && (
+                  <div className="text-red-600">Percorso inesistente o non raggiungibile.</div>
+                )}
+                {verifyDetails.existsPath && !verifyDetails.canRead && (
+                  <div className="text-red-600">Accesso negato (permessi insufficienti sulla share).</div>
+                )}
+                {verifyDetails.existsPath && verifyDetails.canRead && (
+                  <>
+                    <div className="mb-2">
+                      Trovati {verifyDetails.readableCount}/{Object.keys(verifyDetails.files || {}).length} file attesi.
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {Object.entries(verifyDetails.files || {}).map(([name, info]) => (
+                        <div key={name} className={`px-2 py-1 rounded border ${info?.exists ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
+                          <span className="font-mono">{name}</span>{" "}
+                          {info?.exists ? (
+                            <span className="text-green-700">✓ {typeof info.size === "number" ? `(${Math.round(info.size/1024)} KB)` : ""}</span>
+                          ) : (
+                            <span className="text-red-700">✗ mancante</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            <p className="mt-2 text-xs text-gray-500">
               Inserisci il percorso UNC dove si trovano i file CSV di Protek.
             </p>
           </div>
@@ -504,7 +561,14 @@ async function verifyPath() {
                   className="mt-1 w-full border rounded-lg p-2 font-mono"
                   placeholder={`\\\\\\\\192.168.1.248\\\\time dati\\\\ARCHIVIO TECNICO\\\\Esportazioni 4.0\\\\PROTEK\\\\Ricevuti`}
                   value={monitorPath}
-                  onChange={(e) => { setSuccess(""); setVerifyStatus("idle"); setVerifyMsg(""); setMonitorPath(e.target.value); }}
+                  onChange={(e) => {
+                    setSuccess("");
+                    setVerifyStatus("idle");
+                    setVerifyMsg("");
+                    setVerifyDetails(null);
+                    setVerifyOpen(false);
+                    setMonitorPath(e.target.value);
+                  }}
                   disabled={saving}
                 />
                 <div className="mt-2 flex items-center gap-2">
@@ -531,8 +595,51 @@ async function verifyPath() {
                       In attesa di verifica
                     </span>
                   )}
+                  {(verifyStatus === "ok" || verifyStatus === "fail") && verifyDetails && (
+                    <button
+                      type="button"
+                      className="px-2 py-1 rounded border text-xs"
+                      onClick={() => setVerifyOpen(v => !v)}
+                    >
+                      {verifyOpen ? "Nascondi dettagli" : "Dettagli"}
+                    </button>
+                  )}
                 </div>
-                <p className="mt-1 text-xs text-gray-500">
+
+                {verifyOpen && verifyDetails && (
+                  <div className="mt-2 border rounded-lg p-2 text-xs">
+                    <div className="mb-1 text-gray-700">
+                      <b>Cartella:</b> <span className="font-mono">{verifyDetails.monitorPath}</span>
+                    </div>
+                    {!verifyDetails.existsPath && (
+                      <div className="text-red-600">Percorso inesistente o non raggiungibile.</div>
+                    )}
+                    {verifyDetails.existsPath && !verifyDetails.canRead && (
+                      <div className="text-red-600">Accesso negato (permessi insufficienti sulla share).</div>
+                    )}
+                    {verifyDetails.existsPath && verifyDetails.canRead && (
+                      <>
+                        <div className="mb-2">
+                          Trovati {verifyDetails.readableCount}/{Object.keys(verifyDetails.files || {}).length} file attesi.
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {Object.entries(verifyDetails.files || {}).map(([name, info]) => (
+                            <div key={name} className={`px-2 py-1 rounded border ${info?.exists ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
+                              <span className="font-mono">{name}</span>{" "}
+                              {info?.exists ? (
+                                <span className="text-green-700">✓ {typeof info.size === "number" ? `(${Math.round(info.size/1024)} KB)` : ""}</span>
+                              ) : (
+                                <span className="text-red-700">✗ mancante</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                <p className="mt-2 text-xs text-gray-500">
                   Inserisci il percorso UNC dove si trovano i file CSV di Protek.
                 </p>
               </div>
