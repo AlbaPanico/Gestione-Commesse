@@ -14,10 +14,10 @@ async function safeFetchJson(input, init) {
   return { ok: res.ok, status: res.status, data };
 }
 
-export default function NewSlideProtek() {
+export default function NewSlideProtek({ onSaved, onClose }) {
   // UI state
   const [loading, setLoading] = useState(false);
-  the [error, setError] = useState("");
+  const [error, setError] = useState("");   // ← FIX refuso
   const [info, setInfo] = useState("");
 
   // settings
@@ -123,6 +123,7 @@ export default function NewSlideProtek() {
       setInfo("Impostazioni salvate.");
       // Chiudo il pannello e ricarico i dati
       setSettingsOpen(false);
+      onSaved?.();         // ← NEW: notifica il genitore (es. protek.jsx) per ricaricare
       await loadJobs();
     } catch (e) {
       setError(`Errore salvataggio impostazioni: ${String(e)}`);
@@ -156,6 +157,17 @@ export default function NewSlideProtek() {
           >
             {loading ? "Carico..." : "Aggiorna"}
           </button>
+
+          {/* opzionale: pulsante di chiusura quando usato come “slide”/modale */}
+          {typeof onClose === "function" && (
+            <button
+              className="px-3 py-1 rounded-xl text-sm hover:shadow"
+              onClick={() => onClose?.()}
+              title="Chiudi"
+            >
+              Chiudi
+            </button>
+          )}
         </div>
       </div>
 
