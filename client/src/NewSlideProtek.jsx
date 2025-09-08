@@ -1,16 +1,41 @@
 // File: NewSlideProtek.jsx
 import React, { useEffect, useMemo, useState } from "react";
 
-/** Utility fetch che NON esplode se il server risponde HTML */
+/** Utility fetch robusta: prova a parsare JSON anche con header sbagliato */
 async function safeFetchJson(input, init) {
   const res = await fetch(input, init);
-  const ct = res.headers.get("content-type") || "";
-  if (!ct.toLowerCase().includes("application/json")) {
-    const text = await res.text();
-    return { __nonJson: true, ok: res.ok, status: res.status, text };
+  const ct = (res.headers.get("content-type") || "").toLowerCase();
+
+  let data = undefined;
+  let text = undefined;
+
+  try {
+    if (ct.includes("application/json")) {
+      // risposta “ufficialmente” JSON
+      data = await res.json();
+    } else {
+      // risposta non-JSON: leggo testo e provo il parse manuale
+      text = await res.text();
+      const t = (text || "").trim();
+      if (t.startsWith("{") || t.startsWith("[")) {
+        try { data = JSON.parse(t); } catch { /* resta text */ }
+      }
+    }
+  } catch {
+    // se res.json() fallisce (body malformato), ripiego su text
+    try {
+      text = await res.text();
+      const t = (text || "").trim();
+      if (t.startsWith("{") || t.startsWith("[")) {
+        try { data = JSON.parse(t); } catch {}
+      }
+    } catch {}
   }
-  const data = await res.json();
-  return { ok: res.ok, status: res.status, data };
+
+  // __nonJson = TRUE solo se non siamo riusciti ad ottenere un oggetto JSON
+  const nonJson = typeof data === "undefined";
+
+  return { ok: res.ok, status: res.status, data, text, __nonJson: nonJson };
 }
 
 export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
