@@ -11,10 +11,8 @@ async function safeFetchJson(input, init) {
 
   try {
     if (ct.includes("application/json")) {
-      // risposta “ufficialmente” JSON
       data = await res.json();
     } else {
-      // risposta non-JSON: leggo testo e provo il parse manuale
       text = await res.text();
       const t = (text || "").trim();
       if (t.startsWith("{") || t.startsWith("[")) {
@@ -22,7 +20,6 @@ async function safeFetchJson(input, init) {
       }
     }
   } catch {
-    // se res.json() fallisce (body malformato), ripiego su text
     try {
       text = await res.text();
       const t = (text || "").trim();
@@ -32,10 +29,7 @@ async function safeFetchJson(input, init) {
     } catch {}
   }
 
-  // __nonJson = TRUE solo se non siamo riusciti ad ottenere un oggetto JSON
-  const nonJson = typeof data === "undefined";
-
-  return { ok: res.ok, status: res.status, data, text, __nonJson: nonJson };
+  return { ok: res.ok, status: res.status, data, text, __nonJson: typeof data === "undefined" };
 }
 
 export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
@@ -50,6 +44,11 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
   const [success, setSuccess] = useState("");
   const [lastSavedAt, setLastSavedAt] = useState("");
 
+  // Verifica percorso
+  const [verifyBusy, setVerifyBusy] = useState(false);
+  const [verifyStatus, setVerifyStatus] = useState("idle"); // idle | ok | fail
+  const [verifyMsg, setVerifyMsg] = useState("");
+
   // settings
   const [monitorPath, setMonitorPath] = useState("");   // UNC folder con i CSV
   const [pantografi, setPantografi] = useState([]);     // opzionale
@@ -61,17 +60,18 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
   // ────────────────────────────────────────────────────────────────────────────
   async function reloadSettingsFromServer() {
     const r = await safeFetchJson("/api/protek/settings");
-    if (r.__nonJson) {
-      setError("Impossibile leggere le impostazioni Protek (risposta non JSON).");
-      return;
-    }
     if (!r.ok) {
       setError("Errore nel recupero impostazioni Protek.");
-      return;
+      return null;
+    }
+    if (r.__nonJson && !r.data) {
+      setError("Impossibile leggere le impostazioni Protek (risposta non JSON).");
+      return null;
     }
     const s = r.data || {};
     setMonitorPath(s.monitorPath || "");
     setPantografi(Array.isArray(s.pantografi) ? s.pantografi : []);
+    return s;
   }
 
   // Carica impostazioni all'avvio (+ jobs se NON pannello)
@@ -80,8 +80,8 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
       setError("");
       setInfo("");
       setSuccess("");
-      await reloadSettingsFromServer();
-      if (!panelMode && monitorPath) {
+      const s = await reloadSettingsFromServer();
+      if (!panelMode && s && s.monitorPath) {
         await loadJobs();
       }
     })();
@@ -96,27 +96,22 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
     setSuccess("");
     try {
       const r = await safeFetchJson("/api/protek/jobs");
-      if (r.__nonJson) {
+      if (!r.ok) {
+        const msg = r.data?.error || `HTTP ${r.status}`;
         setError(
-          `Errore caricamento jobs: HTTP ${r.status} – ` +
-          `Percorso Protek non configurato o non raggiungibile.`
+          msg.toLowerCase().includes("percorso")
+            ? "Percorso Protek non configurato o non raggiungibile."
+            : `Errore caricamento jobs: ${msg}`
         );
         setJobs([]);
         setMeta(null);
         return;
       }
-      if (!r.ok) {
-        const msg = r.data?.error || "Errore sconosciuto";
-        setError(`Errore caricamento jobs: HTTP ${r.status} – ${msg}`);
-        setJobs([]);
-        setMeta(null);
-        return;
-      }
-      setJobs(r.data.jobs || []);
-      setMeta(r.data.meta || null);
-      if (!r.data.jobs || r.data.jobs.length === 0) {
-        setInfo("Nessun job trovato nei CSV correnti.");
-      }
+      const data = r.data || {};
+      const programs = Array.isArray(data.jobs) ? data.jobs : [];
+      setJobs(programs);
+      setMeta(data.meta || null);
+      if (!programs.length) setInfo("Nessun job trovato nei CSV correnti.");
     } catch (e) {
       setError(`Errore rete: ${String(e)}`);
       setJobs([]);
@@ -127,53 +122,91 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // ────────────────────────────────────────────────────────────────────────────
-async function saveSettings(e) {
-  e?.preventDefault?.();
-  setError("");
-  setInfo("");
-  setSuccess("");
-
-  if (!monitorPath || !monitorPath.trim()) {
-    setError("Inserisci il percorso cartella CSV (monitorPath).");
-    return;
+  // Verifica immediata del percorso senza salvare (usa /api/protek/csv-direct)
+  async function verifyPath() {
+    setVerifyBusy(true);
+    setVerifyStatus("idle");
+    setVerifyMsg("");
+    setError("");
+    try {
+      const pathToTest = (monitorPath || "").trim();
+      if (!pathToTest) {
+        setVerifyStatus("fail");
+        setVerifyMsg("Inserisci un percorso prima di verificare.");
+        return;
+      }
+      const r = await safeFetchJson("/api/protek/csv-direct", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify({ monitorPath: pathToTest }),
+      });
+      if (!r.ok) {
+        setVerifyStatus("fail");
+        setVerifyMsg(`HTTP ${r.status}: percorso non raggiungibile.`);
+        return;
+      }
+      const payload = r.data || {};
+      const jobsCount = Array.isArray(payload.JOBS) ? payload.JOBS.length : 0;
+      const hasMeta = payload.__meta && payload.__meta.monitorPath;
+      setVerifyStatus("ok");
+      setVerifyMsg(
+        hasMeta
+          ? `Valido. (${jobsCount} righe in JOBS.csv)`
+          : `Valido.`
+      );
+    } catch (e) {
+      setVerifyStatus("fail");
+      setVerifyMsg(String(e));
+    } finally {
+      setVerifyBusy(false);
+    }
   }
 
-  const body = { monitorPath: monitorPath.trim(), pantografi };
+  // ────────────────────────────────────────────────────────────────────────────
+  async function saveSettings(e) {
+    e?.preventDefault?.();
+    setError("");
+    setInfo("");
+    setSuccess("");
 
-  try {
-    setSaving(true);
-    const r = await safeFetchJson("/api/protek/settings", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json"        // <— chiediamo esplicitamente JSON
-      },
-      body: JSON.stringify(body),
-    });
-
-    // Se il server risponde 2xx, consideriamo il salvataggio riuscito anche se non JSON
-    if (!r.ok) {
-      const extra = r.__nonJson && r.text ? ` — ${String(r.text).slice(0, 120)}…` : "";
-      setError(`Errore nel salvataggio impostazioni Protek (HTTP ${r.status}).${extra}`);
+    if (!monitorPath || !monitorPath.trim()) {
+      setError("Inserisci il percorso cartella CSV (monitorPath).");
       return;
     }
 
-    // Ricarico le impostazioni dal server per mostrare i valori persistiti
-    await reloadSettingsFromServer();
+    const body = { monitorPath: monitorPath.trim(), pantografi };
 
-    const hhmm = new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
-    setLastSavedAt(hhmm);
-    setSuccess(r.__nonJson ? `✓ Salvato alle ${hhmm} (risposta non JSON)` : `✓ Salvato alle ${hhmm}`);
-    onSaved?.(); // notifica il genitore (protek.jsx) per ricaricare tabella
+    try {
+      setSaving(true);
+      const r = await safeFetchJson("/api/protek/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(body),
+      });
 
-  } catch (e) {
-    setError(`Errore salvataggio impostazioni: ${String(e)}`);
-  } finally {
-    setSaving(false);
+      if (!r.ok) {
+        const extra = r.__nonJson && r.text ? ` — ${String(r.text).slice(0, 120)}…` : "";
+        setError(`Errore nel salvataggio impostazioni Protek (HTTP ${r.status}).${extra}`);
+        return;
+      }
+
+      // Ricarico le impostazioni dal server per mostrare i valori persistiti
+      await reloadSettingsFromServer();
+
+      const hhmm = new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+      setLastSavedAt(hhmm);
+      setSuccess(r.__nonJson ? `✓ Salvato alle ${hhmm} (risposta non JSON)` : `✓ Salvato alle ${hhmm}`);
+      onSaved?.(); // notifica il genitore (protek.jsx) per ricaricare tabella
+
+    } catch (e) {
+      setError(`Errore salvataggio impostazioni: ${String(e)}`);
+    } finally {
+      setSaving(false);
+    }
   }
-}
-
 
   // ────────────────────────────────────────────────────────────────────────────
   const totalJobs = useMemo(() => jobs.length, [jobs]);
@@ -204,11 +237,41 @@ async function saveSettings(e) {
               placeholder={`\\\\\\\\192.168.1.248\\\\time dati\\\\ARCHIVIO TECNICO\\\\Esportazioni 4.0\\\\PROTEK\\\\Ricevuti`}
               value={monitorPath}
               onChange={(e) => {
-                setSuccess(""); // se l'utente modifica, nascondo il "salvato"
+                setSuccess("");          // se l'utente modifica, nascondo il "salvato"
+                setVerifyStatus("idle"); // reset badge verifica
+                setVerifyMsg("");
                 setMonitorPath(e.target.value);
               }}
               disabled={saving}
             />
+            <div className="mt-2 flex items-center gap-2">
+              <button
+                type="button"
+                className="px-2 py-1 rounded border text-sm disabled:opacity-60"
+                onClick={verifyPath}
+                disabled={verifyBusy || saving || !monitorPath.trim()}
+                title="Verifica accessibilità e formato CSV nella cartella indicata"
+              >
+                {verifyBusy ? "Verifico…" : "Verifica percorso"}
+              </button>
+
+              {/* Badge stato verifica */}
+              {verifyStatus === "ok" && (
+                <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-700">
+                  ✓ {verifyMsg || "Valido"}
+                </span>
+              )}
+              {verifyStatus === "fail" && (
+                <span className="px-2 py-1 text-xs rounded bg-red-100 text-red-700">
+                  ✗ {verifyMsg || "Non raggiungibile"}
+                </span>
+              )}
+              {verifyStatus === "idle" && (
+                <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-600">
+                  In attesa di verifica
+                </span>
+              )}
+            </div>
             <p className="mt-1 text-xs text-gray-500">
               Inserisci il percorso UNC dove si trovano i file CSV di Protek.
             </p>
@@ -253,7 +316,6 @@ async function saveSettings(e) {
 
   // ────────────────────────────────────────────────────────────────────────────
   // RENDER pagina autonoma (toolbar + tabella + modale impostazioni interno)
-  // (manteniamo lo stesso comportamento di successo/disabilitazione)
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
@@ -411,9 +473,34 @@ async function saveSettings(e) {
                   className="mt-1 w-full border rounded-lg p-2 font-mono"
                   placeholder={`\\\\\\\\192.168.1.248\\\\time dati\\\\ARCHIVIO TECNICO\\\\Esportazioni 4.0\\\\PROTEK\\\\Ricevuti`}
                   value={monitorPath}
-                  onChange={(e) => { setSuccess(""); setMonitorPath(e.target.value); }}
+                  onChange={(e) => { setSuccess(""); setVerifyStatus("idle"); setVerifyMsg(""); setMonitorPath(e.target.value); }}
                   disabled={saving}
                 />
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="px-2 py-1 rounded border text-sm disabled:opacity-60"
+                    onClick={verifyPath}
+                    disabled={verifyBusy || saving || !monitorPath.trim()}
+                  >
+                    {verifyBusy ? "Verifico…" : "Verifica percorso"}
+                  </button>
+                  {verifyStatus === "ok" && (
+                    <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-700">
+                      ✓ {verifyMsg || "Valido"}
+                    </span>
+                  )}
+                  {verifyStatus === "fail" && (
+                    <span className="px-2 py-1 text-xs rounded bg-red-100 text-red-700">
+                      ✗ {verifyMsg || "Non raggiungibile"}
+                    </span>
+                  )}
+                  {verifyStatus === "idle" && (
+                    <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-600">
+                      In attesa di verifica
+                    </span>
+                  )}
+                </div>
                 <p className="mt-1 text-xs text-gray-500">
                   Inserisci il percorso UNC dove si trovano i file CSV di Protek.
                 </p>
