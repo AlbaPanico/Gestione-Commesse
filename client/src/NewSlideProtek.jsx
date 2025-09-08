@@ -17,7 +17,7 @@ async function safeFetchJson(input, init) {
 export default function NewSlideProtek() {
   // UI state
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  the [error, setError] = useState("");
   const [info, setInfo] = useState("");
 
   // settings
@@ -263,7 +263,7 @@ export default function NewSlideProtek() {
                 <input
                   type="text"
                   className="mt-1 w-full border rounded-lg p-2 font-mono"
-                  placeholder={`\\\\192.168.1.248\\time dati\\ARCHIVIO TECNICO\\Esportazioni 4.0\\PROTEK\\Ricevuti`}
+                  placeholder={`\\\\\\\\192.168.1.248\\\\time dati\\\\ARCHIVIO TECNICO\\\\Esportazioni 4.0\\\\PROTEK\\\\Ricevuti`}
                   value={monitorPath}
                   onChange={(e) => setMonitorPath(e.target.value)}
                 />
