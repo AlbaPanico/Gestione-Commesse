@@ -122,45 +122,76 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Verifica immediata del percorso senza salvare (usa /api/protek/csv-direct)
-  async function verifyPath() {
-    setVerifyBusy(true);
-    setVerifyStatus("idle");
-    setVerifyMsg("");
-    setError("");
-    try {
-      const pathToTest = (monitorPath || "").trim();
-      if (!pathToTest) {
-        setVerifyStatus("fail");
-        setVerifyMsg("Inserisci un percorso prima di verificare.");
-        return;
-      }
-      const r = await safeFetchJson("/api/protek/csv-direct", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        body: JSON.stringify({ monitorPath: pathToTest }),
-      });
-      if (!r.ok) {
-        setVerifyStatus("fail");
-        setVerifyMsg(`HTTP ${r.status}: percorso non raggiungibile.`);
-        return;
-      }
-      const payload = r.data || {};
-      const jobsCount = Array.isArray(payload.JOBS) ? payload.JOBS.length : 0;
-      const hasMeta = payload.__meta && payload.__meta.monitorPath;
-      setVerifyStatus("ok");
-      setVerifyMsg(
-        hasMeta
-          ? `Valido. (${jobsCount} righe in JOBS.csv)`
-          : `Valido.`
-      );
-    } catch (e) {
+  // Verifica percorso con diagnostica completa (usa /api/protek/diagnose-path)
+async function verifyPath() {
+  setVerifyBusy(true);
+  setVerifyStatus("idle");
+  setVerifyMsg("");
+  setError("");
+  try {
+    const pathToTest = (monitorPath || "").trim();
+    if (!pathToTest) {
       setVerifyStatus("fail");
-      setVerifyMsg(String(e));
-    } finally {
-      setVerifyBusy(false);
+      setVerifyMsg("Inserisci un percorso prima di verificare.");
+      return;
     }
+
+    const r = await safeFetchJson("/api/protek/diagnose-path", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({ monitorPath: pathToTest }),
+    });
+
+    // Errore HTTP (404 inesistente, 403 permessi, ecc.)
+    if (!r.ok) {
+      const msg = r.data?.error || `HTTP ${r.status}: percorso non raggiungibile.`;
+      setVerifyStatus("fail");
+      setVerifyMsg(msg);
+      return;
+    }
+
+    const d = r.data || {};
+    if (!d.existsPath) {
+      setVerifyStatus("fail");
+      setVerifyMsg("Percorso inesistente o non raggiungibile dal server.");
+      return;
+    }
+    if (!d.canRead) {
+      setVerifyStatus("fail");
+      setVerifyMsg("Accesso negato: controlla i permessi della share sul server.");
+      return;
+    }
+
+    const expectedCount = Object.keys(d.files || {}).length;
+    const found = Number(d.readableCount || 0);
+    const missingList = Array.isArray(d.missing) ? d.missing : [];
+
+    if (found === 0) {
+      setVerifyStatus("fail");
+      setVerifyMsg("Cartella raggiunta ma nessun CSV atteso presente.");
+      return;
+    }
+
+    // Messaggio di successo con conteggio e (se presenti) mancanti elencati brevemente
+    let msg = `Valido. Trovati ${found}/${expectedCount} CSV attesi.`;
+    if (missingList.length) {
+      const preview = missingList.slice(0, 3).join(", ");
+      msg += ` Mancano: ${preview}${missingList.length > 3 ? "…" : ""}`;
+    }
+
+    setVerifyStatus("ok");
+    setVerifyMsg(msg);
+  } catch (e) {
+    setVerifyStatus("fail");
+    setVerifyMsg(String(e));
+  } finally {
+    setVerifyBusy(false);
   }
+}
+
 
   // ────────────────────────────────────────────────────────────────────────────
   async function saveSettings(e) {
