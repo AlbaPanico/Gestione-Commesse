@@ -46,13 +46,10 @@ export default function ProtekPage() {
         throw new Error(`HTTP ${res.status}`);
       }
       const j = await res.json();
-       const programs = Array.isArray(j?.programs) ? j.programs : [];
- setRows(programs);
- // se vuoi mostrare il path monitorato:
- setRefreshedAt(new Date().toISOString());
- // opzionale: tieni anche meta per mostrarlo a schermo
- // setMeta(j.meta);  // e poi leggi meta.monitorPath nel render
+      const programs = Array.isArray(j?.programs) ? j.programs : [];
+      setRows(programs);
       setRefreshedAt(new Date().toISOString());
+      setMeta(j.meta || null);
     } catch (e) {
       setError(String(e?.message || e));
     } finally {
@@ -101,13 +98,11 @@ export default function ProtekPage() {
       <div className="text-xs text-gray-500 flex items-center gap-3 flex-wrap">
         <div>
           Path monitorato:{" "}
-          <span className="font-mono">{rows?.meta?.monitorPath || "—"}</span>
+          <span className="font-mono">{meta?.monitorPath || "—"}</span>
         </div>
         <div>
           • aggiornato:{" "}
-          {refreshedAt
-            ? new Date(refreshedAt).toLocaleString("it-IT")
-            : "—"}
+          {refreshedAt ? new Date(refreshedAt).toLocaleString("it-IT") : "—"}
         </div>
         <div className="ml-auto flex items-center gap-2">
           <input
@@ -137,53 +132,53 @@ export default function ProtekPage() {
       <div className="flex-1 overflow-auto rounded-2xl border">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-gray-50">
-            <tr className="text-left">
-              <th className="p-2">Program Code</th>
-              <th className="p-2">Descrizione</th>
-              <th className="p-2">Cliente</th>
-              <th className="p-2">Stato</th>
-              <th className="p-2">Inizio</th>
-              <th className="p-2">Fine</th>
-              <th className="p-2">Durata</th>
-              <th className="p-2"># Lavorazioni</th>
-            </tr>
+          <tr className="text-left">
+            <th className="p-2">Program Code</th>
+            <th className="p-2">Descrizione</th>
+            <th className="p-2">Cliente</th>
+            <th className="p-2">Stato</th>
+            <th className="p-2">Inizio</th>
+            <th className="p-2">Fine</th>
+            <th className="p-2">Durata</th>
+            <th className="p-2"># Lavorazioni</th>
+          </tr>
           </thead>
           <tbody>
-            {loading && (
-              <tr>
-                <td colSpan={8} className="p-6 text-center text-gray-400">
-                  Caricamento…
-                </td>
+          {loading && (
+            <tr>
+              <td colSpan={8} className="p-6 text-center text-gray-400">
+                Caricamento…
+              </td>
+            </tr>
+          )}
+          {!loading && error && (
+            <tr>
+              <td colSpan={8} className="p-6 text-center text-red-500">
+                Errore: {error}
+              </td>
+            </tr>
+          )}
+          {!loading && !error && filtered.length === 0 && (
+            <tr>
+              <td colSpan={8} className="p-6 text-center text-gray-400">
+                Nessun dato da mostrare
+              </td>
+            </tr>
+          )}
+          {!loading &&
+            !error &&
+            filtered.map((r) => (
+              <tr key={r.id} className="border-t hover:bg-gray-50">
+                <td className="p-2 font-mono">{r.code || "—"}</td>
+                <td className="p-2">{r.description || "—"}</td>
+                <td className="p-2">{r.customer || "—"}</td>
+                <td className="p-2">{r.latestState || "—"}</td>
+                <td className="p-2">{fmtDate(r.startTime)}</td>
+                <td className="p-2">{fmtDate(r.endTime)}</td>
+                <td className="p-2">{fmtDuration(r.startTime, r.endTime)}</td>
+                <td className="p-2">{r.numWorkings ?? 0}</td>
               </tr>
-            )}
-            {!loading && error && (
-              <tr>
-                <td colSpan={8} className="p-6 text-center text-red-500">
-                  Errore: {error}
-                </td>
-              </tr>
-            )}
-            {!loading && !error && filtered.length === 0 && (
-              <tr>
-                <td colSpan={8} className="p-6 text-center text-gray-400">
-                  Nessun dato da mostrare
-                </td>
-              </tr>
-            )}
-            {!loading &&
-              !error &&
-              filtered.map((r) => (
-                <tr key={r.id} className="border-t hover:bg-gray-50">
-                  <td className="p-2 font-mono">{r.code || "—"}</td>
-                  <td className="p-2">{r.description || "—"}</td>
-                  <td className="p-2">{r.customer || "—"}</td>
-                  <td className="p-2">{r.latestState || "—"}</td>
-                  <td className="p-2">{fmtDate(r.startTime)}</td>
-                  <td className="p-2">{fmtDate(r.endTime)}</td>
-                  <td className="p-2">{fmtDuration(r.startTime, r.endTime)}</td>
-                  <td className="p-2">{r.numWorkings ?? 0}</td>
-                </tr>
-              ))}
+            ))}
           </tbody>
         </table>
       </div>
