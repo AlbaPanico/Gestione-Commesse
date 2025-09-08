@@ -1,0 +1,36 @@
+[2025-09-08 09:19:24] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita', 'reportDdtPath']
+[2025-09-08 09:19:24] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita']
+[2025-09-08 09:19:24] DEBUG nomeCommessa='BIONIKE_cvt tester fondotinta_P2412_C4924' descrizione='Assembraggio BIONIKE_cvt tester fondotinta_P2412_C4924'
+[2025-09-08 09:19:24] DEBUG nomeCommessa='BIONIKE_cvt tester fondotinta_P2412_C4924' descrizione='Assembraggio BIONIKE_cvt tester fondotinta_P2412_C4924'
+[2025-09-08 09:19:24] DEBUG estrazione: sorgente='Assembraggio BIONIKE_cvt tester fondotinta_P2412_C4924' -> estratto='cvt tester fondotinta'
+[2025-09-08 09:19:24] DEBUG estrazione: sorgente='Assembraggio BIONIKE_cvt tester fondotinta_P2412_C4924' -> estratto='cvt tester fondotinta'
+[2025-09-08 09:19:24] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\BIONIKE_cvt tester fondotinta_P2412_C4924\MATERIALI' esiste=True
+[2025-09-08 09:19:24] DEBUG codice_commessa_norm='C4924' (raw='C4924')
+[2025-09-08 09:19:24] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\BIONIKE_cvt tester fondotinta_P2412_C4924\MATERIALI' esiste=True
+[2025-09-08 09:19:24] DEBUG codice_commessa_norm='C4924' (raw='C4924')
+[2025-09-08 09:19:24] DEBUG MATERIALI contiene (4 file): DDT_0041T_C4924_08-09-2025.pdf, DDT_0089W_C4924_08-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_BIONIKE_cvt tester fondotinta_P2412_C4924.xlsx
+[2025-09-08 09:19:24] DEBUG match regex ENTRATA: DDT_0089W_C4924_08-09-2025.pdf
+[2025-09-08 09:19:24] DEBUG MATERIALI contiene (4 file): DDT_0041T_C4924_08-09-2025.pdf, DDT_0089W_C4924_08-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_BIONIKE_cvt tester fondotinta_P2412_C4924.xlsx
+[2025-09-08 09:19:24] DEBUG match regex ENTRATA: DDT_0089W_C4924_08-09-2025.pdf
+[2025-09-08 09:19:24] DEBUG MATERIALI contiene (4 file): DDT_0041T_C4924_08-09-2025.pdf, DDT_0089W_C4924_08-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_BIONIKE_cvt tester fondotinta_P2412_C4924.xlsx
+[2025-09-08 09:19:24] DEBUG match regex USCITA: DDT_0041T_C4924_08-09-2025.pdf
+[2025-09-08 09:19:24] DEBUG MATERIALI contiene (4 file): DDT_0041T_C4924_08-09-2025.pdf, DDT_0089W_C4924_08-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_BIONIKE_cvt tester fondotinta_P2412_C4924.xlsx
+[2025-09-08 09:19:24] DEBUG match regex USCITA: DDT_0041T_C4924_08-09-2025.pdf
+[2025-09-08 09:19:24] DEBUG dedupe: nessuna riga esistente, scrivo in nuova riga 13
+[2025-09-08 09:19:24] DEBUG dedupe: nessuna riga esistente, scrivo in nuova riga 13
+[2025-09-08 09:19:24] DEBUG prezzoVendita ricevuto='50' -> usato=50.0
+[2025-09-08 09:19:24] DEBUG prezzoVendita ricevuto='50' -> usato=50.0
+[2025-09-08 09:19:24] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 13) | NomeCommessa='cvt tester fondotinta' | Codice='C4924' | PrezzoVendita=50.0 | PDF_IN='DDT_0089W_C4924_08-09-2025.pdf'
+[2025-09-08 09:19:24] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 13) | NomeCommessa='cvt tester fondotinta' | Codice='C4924' | PrezzoVendita=50.0 | PDF_IN='DDT_0089W_C4924_08-09-2025.pdf'
+[2025-09-08 09:19:25] DEBUG DATI keys=['codiceCommessa', 'quantita', 'folderPath', 'colli', 'oreLavorazione', 'nomeCommessa', 'prezzoVendita', 'descrizione']
+[2025-09-08 09:19:25] DEBUG nomeCommessa='BIONIKE_cvt tester fondotinta_P2412_C4924' descrizione='Assembraggio BIONIKE_cvt tester fondotinta_P2412_C4924'
+[2025-09-08 09:19:25] DEBUG estrazione: sorgente='Assembraggio BIONIKE_cvt tester fondotinta_P2412_C4924' -> estratto='cvt tester fondotinta'
+[2025-09-08 09:19:25] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\BIONIKE_cvt tester fondotinta_P2412_C4924\MATERIALI' esiste=True
+[2025-09-08 09:19:25] DEBUG codice_commessa_norm='C4924' (raw='C4924')
+[2025-09-08 09:19:25] DEBUG MATERIALI contiene (4 file): DDT_0041T_C4924_08-09-2025.pdf, DDT_0089W_C4924_08-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_BIONIKE_cvt tester fondotinta_P2412_C4924.xlsx
+[2025-09-08 09:19:25] DEBUG match regex ENTRATA: DDT_0089W_C4924_08-09-2025.pdf
+[2025-09-08 09:19:25] DEBUG MATERIALI contiene (4 file): DDT_0041T_C4924_08-09-2025.pdf, DDT_0089W_C4924_08-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_BIONIKE_cvt tester fondotinta_P2412_C4924.xlsx
+[2025-09-08 09:19:25] DEBUG match regex USCITA: DDT_0041T_C4924_08-09-2025.pdf
+[2025-09-08 09:19:25] DEBUG dedupe: sovrascrivo riga esistente 13 per DDT 0089W
+[2025-09-08 09:19:25] DEBUG prezzoVendita ricevuto='50.00' -> usato=50.0
+[2025-09-08 09:19:25] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 13) | NomeCommessa='cvt tester fondotinta' | Codice='C4924' | PrezzoVendita=50.0 | PDF_IN='DDT_0089W_C4924_08-09-2025.pdf'
