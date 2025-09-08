@@ -1595,10 +1595,18 @@ app.post('/api/protek/settings', (req, res) => {
   const dataDir = path.join(__dirname, 'data');
   if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
   const protekSettingsFile = path.join(dataDir, 'Proteksetting.json');
+
+  // normalizza pantografi a array
+  const pantografiArr = Array.isArray(pantografi) ? pantografi : [];
+
   try {
-    fs.writeFileSync(protekSettingsFile, JSON.stringify({ monitorPath, pantografi: pantografi || [] }, null, 2), 'utf8');
-    res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.toString() }); }
+    const toSave = { monitorPath, pantografi: pantografiArr };
+    fs.writeFileSync(protekSettingsFile, JSON.stringify(toSave, null, 2), 'utf8');
+    // 👉 ora il backend fa eco dei valori salvati
+    res.json({ ok: true, monitorPath, pantografi: pantografiArr });
+  } catch (err) {
+    res.status(500).json({ error: err.toString() });
+  }
 });
 
 app.get('/api/protek/settings', (req, res) => {
