@@ -1687,6 +1687,78 @@ app.post('/api/protek/csv-direct', (req, res) => {
   res.json(payload);
 });
 
+// === PROTEK: diagnostica percorso (esistenza, lettura, file attesi) ===========
+app.post('/api/protek/diagnose-path', (req, res) => {
+  const monitorPath = (req.body?.monitorPath || '').trim();
+  if (!monitorPath) {
+    return res.status(400).json({ ok: false, error: 'monitorPath mancante' });
+  }
+
+  const expected = [
+    'JOBS.csv',
+    'JOB_ORDERS.csv',
+    'PART_PROGRAMS.csv',
+    'PART_SUB_PROGRAMS.csv',
+    'PART_PROGRAM_WORKINGS.csv',
+    'PART_PROGRAM_WORKING_LINES.csv',
+    'NESTINGS_ORDERS.csv',
+    'NESTING_OCCURENCES.csv',
+    'LIFECYCLE.csv'
+  ];
+
+  const result = {
+    ok: false,
+    monitorPath,
+    existsPath: false,
+    canRead: false,
+    files: {},       // { filename: { exists, size } }
+    readableCount: 0,
+    missing: []
+  };
+
+  try {
+    // 1) esistenza cartella
+    if (!fs.existsSync(monitorPath)) {
+      result.existsPath = false;
+      return res.status(404).json({ ...result, error: 'Percorso inesistente o non raggiungibile dal server.' });
+    }
+    result.existsPath = true;
+
+    // 2) proviamo a leggere la cartella
+    let names = [];
+    try {
+      names = fs.readdirSync(monitorPath);
+      result.canRead = true;
+    } catch (e) {
+      result.canRead = false;
+      return res.status(403).json({ ...result, error: 'Accesso negato alla cartella (permessi).' });
+    }
+
+    // 3) controlliamo i file attesi
+    let count = 0;
+    for (const fname of expected) {
+      const fp = path.join(monitorPath, fname);
+      const exists = fs.existsSync(fp);
+      let size = null;
+      if (exists) {
+        try { size = fs.statSync(fp).size; } catch {}
+        count++;
+      } else {
+        result.missing.push(fname);
+      }
+      result.files[fname] = { exists, size };
+    }
+    result.readableCount = count;
+
+    // ok se almeno uno dei file attesi è presente
+    result.ok = count > 0;
+    return res.json(result);
+
+  } catch (e) {
+    return res.status(500).json({ ...result, error: e?.message || String(e) });
+  }
+});
+
 // === PROTEK: vista unificata JOBS passando il percorso direttamente dal client ==
 app.post('/api/protek/jobs-direct', (req, res) => {
   const monitorPath = (req.body?.monitorPath || req.query?.monitorPath || '').trim();
