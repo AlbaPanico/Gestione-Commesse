@@ -35,6 +35,7 @@ export default function ProtekPage() {
   const [search, setSearch] = useState("");
   const [stateFilter, setStateFilter] = useState("ALL");
   const [refreshedAt, setRefreshedAt] = useState("");
+  const [meta, setMeta] = useState(null);
 
   const load = async () => {
     try {
