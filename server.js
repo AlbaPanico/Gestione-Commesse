@@ -1687,7 +1687,7 @@ app.post('/api/protek/csv-direct', (req, res) => {
   res.json(payload);
 });
 
-// === PROTEK: diagnostica percorso (esistenza, lettura, file attesi) ===========
+// === PROTEK: diagnostica percorso (esistenza, permessi, file attesi) ===========
 app.post('/api/protek/diagnose-path', (req, res) => {
   const monitorPath = (req.body?.monitorPath || '').trim();
   if (!monitorPath) {
@@ -1724,17 +1724,16 @@ app.post('/api/protek/diagnose-path', (req, res) => {
     }
     result.existsPath = true;
 
-    // 2) proviamo a leggere la cartella
-    let names = [];
+    // 2) lettura directory (permessi)
     try {
-      names = fs.readdirSync(monitorPath);
+      fs.readdirSync(monitorPath);
       result.canRead = true;
     } catch (e) {
       result.canRead = false;
       return res.status(403).json({ ...result, error: 'Accesso negato alla cartella (permessi).' });
     }
 
-    // 3) controlliamo i file attesi
+    // 3) file attesi
     let count = 0;
     for (const fname of expected) {
       const fp = path.join(monitorPath, fname);
@@ -1750,7 +1749,7 @@ app.post('/api/protek/diagnose-path', (req, res) => {
     }
     result.readableCount = count;
 
-    // ok se almeno uno dei file attesi è presente
+    // ok se almeno un CSV atteso è presente
     result.ok = count > 0;
     return res.json(result);
 
