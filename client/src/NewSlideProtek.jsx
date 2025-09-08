@@ -102,49 +102,53 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  async function saveSettings(e) {
-    e?.preventDefault?.();
-    setError("");
-    setInfo("");
-    setSuccess("");
+  // ────────────────────────────────────────────────────────────────────────────
+async function saveSettings(e) {
+  e?.preventDefault?.();
+  setError("");
+  setInfo("");
+  setSuccess("");
 
-    if (!monitorPath || !monitorPath.trim()) {
-      setError("Inserisci il percorso cartella CSV (monitorPath).");
+  if (!monitorPath || !monitorPath.trim()) {
+    setError("Inserisci il percorso cartella CSV (monitorPath).");
+    return;
+  }
+
+  const body = { monitorPath: monitorPath.trim(), pantografi };
+
+  try {
+    setSaving(true);
+    const r = await safeFetchJson("/api/protek/settings", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"        // <— chiediamo esplicitamente JSON
+      },
+      body: JSON.stringify(body),
+    });
+
+    // Se il server risponde 2xx, consideriamo il salvataggio riuscito anche se non JSON
+    if (!r.ok) {
+      const extra = r.__nonJson && r.text ? ` — ${String(r.text).slice(0, 120)}…` : "";
+      setError(`Errore nel salvataggio impostazioni Protek (HTTP ${r.status}).${extra}`);
       return;
     }
 
-    const body = { monitorPath: monitorPath.trim(), pantografi };
+    // Ricarico le impostazioni dal server per mostrare i valori persistiti
+    await reloadSettingsFromServer();
 
-    try {
-      setSaving(true);
-      const r = await safeFetchJson("/api/protek/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (r.__nonJson) {
-        setError("Salvataggio impostazioni: risposta non JSON.");
-        return;
-      }
-      if (!r.ok) {
-        setError("Errore nel salvataggio impostazioni Protek.");
-        return;
-      }
+    const hhmm = new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+    setLastSavedAt(hhmm);
+    setSuccess(r.__nonJson ? `✓ Salvato alle ${hhmm} (risposta non JSON)` : `✓ Salvato alle ${hhmm}`);
+    onSaved?.(); // notifica il genitore (protek.jsx) per ricaricare tabella
 
-      // ✅ dopo il salvataggio rimaniamo nel pannello e ricarichiamo le impostazioni dal server
-      await reloadSettingsFromServer();
-
-      const hhmm = new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
-      setLastSavedAt(hhmm);
-      setSuccess(`✓ Salvato alle ${hhmm}`);
-      onSaved?.(); // notifica il genitore per ricaricare (protek.jsx)
-
-    } catch (e) {
-      setError(`Errore salvataggio impostazioni: ${String(e)}`);
-    } finally {
-      setSaving(false);
-    }
+  } catch (e) {
+    setError(`Errore salvataggio impostazioni: ${String(e)}`);
+  } finally {
+    setSaving(false);
   }
+}
+
 
   // ────────────────────────────────────────────────────────────────────────────
   const totalJobs = useMemo(() => jobs.length, [jobs]);
