@@ -2,52 +2,26 @@
 import React, { useEffect, useMemo, useState } from "react";
 import NewSlideProtek from "./NewSlideProtek";
 
-/** ───────────────────────── Utils ───────────────────────── **/
-
-// Accede anche a path annidati tipo "program.NAME"
-function readPath(obj, path) {
-  if (!obj || !path) return undefined;
-  const parts = path.split(".");
-  let cur = obj;
-  for (const p of parts) {
-    if (cur && Object.prototype.hasOwnProperty.call(cur, p)) {
-      cur = cur[p];
-    } else {
-      return undefined;
+/* ----------------- fetch robusto ----------------- */
+async function safeFetchJson(input, init) {
+  const res = await fetch(input, init);
+  const ct = (res.headers.get("content-type") || "").toLowerCase();
+  let data, text;
+  try {
+    if (ct.includes("application/json")) data = await res.json();
+    else {
+      text = await res.text();
+      const t = (text || "").trim();
+      if (t.startsWith("{") || t.startsWith("[")) data = JSON.parse(t);
     }
-  }
-  return cur;
+  } catch {}
+  return { ok: res.ok, status: res.status, data, text };
 }
 
-// Ritorna il primo campo non vuoto trovando tra vari alias
-function pick(r, keys) {
-  for (const k of keys) {
-    const v = k.includes(".") ? readPath(r, k) : r?.[k];
-    if (v !== undefined && v !== null && String(v).trim() !== "") return v;
-  }
-  return undefined;
-}
-
-// Normalizza "YYYY-MM-DD HH:mm:ss" → "YYYY-MM-DDTHH:mm:ss"
-function normalizeDate(ts) {
-  if (!ts) return ts;
-  if (typeof ts !== "string") return ts;
-  const t = ts.trim();
-  // Se è già ISO con 'T' lascio stare
-  if (t.includes("T")) return t;
-  // Se è formato comune SQL con spazio, sostituisco con 'T'
-  // e rimuovo eventuali millisecondi/UTC strani
-  if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(:\d{2})?$/.test(t)) {
-    return t.replace(" ", "T");
-  }
-  return ts;
-}
-
-/** Utilità formattazione data/ora (accetta ISO o SQL-like) */
+/* ----------------- util formattazione ----------------- */
 function fmtDate(ts) {
   if (!ts) return "—";
-  const nt = normalizeDate(ts);
-  const d = new Date(nt);
+  const d = new Date(ts);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleString("it-IT", {
     day: "2-digit",
@@ -57,24 +31,32 @@ function fmtDate(ts) {
     minute: "2-digit",
   });
 }
-
 function fmtDuration(start, end) {
-  const s = normalizeDate(start);
-  const e = normalizeDate(end);
-  if (!s || !e) return "—";
-  const a = new Date(s).getTime();
-  const b = new Date(e).getTime();
+  if (!start || !end) return "—";
+  const a = new Date(start).getTime();
+  const b = new Date(end).getTime();
   if (Number.isNaN(a) || Number.isNaN(b) || b < a) return "—";
-  const ms = b - a;
-  const mins = Math.floor(ms / 60000);
+  const mins = Math.floor((b - a) / 60000);
   const hh = Math.floor(mins / 60);
   const mm = mins % 60;
   return `${hh}h ${mm}m`;
 }
 
-/** ───────────────────── Component ───────────────────── **/
+/* ----------------- helpers di normalizzazione ----------------- */
+const first = (...vals) => vals.find(v => v !== undefined && v !== null && v !== "") ?? "";
+const toISO = (d, t) => {
+  // accetta date "YYYY-MM-DD" / "DD/MM/YYYY" ed orari "HH:mm[:ss]"
+  if (!d) return null;
+  try {
+    if (t) return new Date(`${d} ${t}`).toISOString();
+    return new Date(d).toISOString();
+  } catch { return null; }
+};
 
-export default function ProtekPage({ onBack }) {
+export default function ProtekPage({ onBack, server }) {
+  const API_BASE = (server || import.meta?.env?.VITE_API_BASE || "http://192.168.1.250:3001").replace(/\/+$/,"");
+  const api = (p) => `${API_BASE}${p.startsWith("/") ? p : `/${p}`}`;
+
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -84,78 +66,127 @@ export default function ProtekPage({ onBack }) {
   const [meta, setMeta] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // alias usati per resilienza contro payload diversi
-  const ALIAS = {
-    code: [
-      "code", "programCode", "program_code",
-      "name", "NAME", "programName", "program_name",
-      "program.NAME", "program.name", "partProgramName", "PROGRAM_NAME"
-    ],
-    description: ["description", "descrizione", "note", "NOTE", "desc", "programDescription"],
-    customer: ["customer", "customerName", "customer_name", "CUSTOMER_NAME"],
-    state: ["latestState", "state", "latest_state", "STATE"],
-    start: ["startTime", "firstStart", "startedAt", "DATE_STARTED", "start", "start_date"],
-    end: ["endTime", "lastEnd", "completedAt", "DATE_COMPLETED", "end", "end_date"],
-    count: ["numWorkings", "workings", "count", "NUM", "NUM_WORKINGS"]
-  };
+  /* ----- normalizza da /programs ----- */
+  const normalizeFromPrograms = (list = []) =>
+    list.map((p, i) => ({
+      id: p.id ?? `${p.code || "row"}-${i}`,
+      code: first(p.code, p.programCode, p.ProgramCode, p.name, p.Program),
+      description: first(p.description, p.descrizione, p.programDescription, p.note, p.title),
+      customer: first(p.customer, p.customerName, p.client, p.cliente),
+      latestState: first(p.latestState, p.state, p.status, p.Stato, p.Status),
+      startTime: first(
+        p.startTime,
+        toISO(p.startDate, p.startTime),
+        p.startedAt,
+        p.start_date
+      ) || null,
+      endTime: first(
+        p.endTime,
+        toISO(p.endDate, p.endTime),
+        p.completedAt,
+        p.readyDate
+      ) || null,
+      numWorkings: p.numWorkings ?? p.workings ?? 0,
+    }));
 
+  /* ----- normalizza da /jobs (molto tollerante) ----- */
+  const normalizeFromJobs = (list = []) =>
+    list.map((j, i) => {
+      const r = j.job && typeof j.job === "object" ? j.job : j; // dati annidati?
+      const code = first(
+        j.code, r?.code, r?.jobCode, r?.JobCode, r?.programCode, r?.ProgramCode, r?.name
+      );
+      const description = first(
+        j.description, r?.description, r?.jobDescription, r?.desc, r?.title, r?.note
+      );
+      const customer = first(
+        j.customer, r?.customer, r?.customerName, r?.client, r?.cliente, r?.customer?.name
+      );
+      const latestState = first(
+        j.latestState, r?.latestState, j.state, r?.state, j.status, r?.status, r?.Stato, r?.Status
+      );
+
+      // I CSV "jobs" in genere non hanno orari — provo comunque a derivare se presenti
+      const startTime = first(
+        j.startTime, r?.startTime, toISO(r?.startDate, r?.startTime), r?.startedAt
+      ) || null;
+      const endTime = first(
+        j.endTime, r?.endTime, toISO(r?.endDate, r?.endTime), r?.completedAt, r?.readyDate
+      ) || null;
+
+      const numWorkings = first(
+        j.numWorkings, r?.numWorkings,
+        j?.totals?.piecesFromNestings,
+        j?.totals?.qtyOrdered,
+        Array.isArray(j?.orders) ? j.orders.length : undefined
+      );
+      return {
+        id: j.id ?? r?.id ?? `${code || "job"}-${i}`,
+        code, description, customer, latestState,
+        startTime, endTime,
+        numWorkings: typeof numWorkings === "number" ? numWorkings : 0,
+      };
+    });
+
+  /* ----------------- load ----------------- */
   const load = async () => {
     try {
       setLoading(true);
       setError("");
-      const res = await fetch("/api/protek/programs");
-      if (!res.ok) {
-        const msg =
-          res.status === 404
-            ? "Percorso CSV Protek non configurato o non raggiungibile."
-            : `HTTP ${res.status}`;
-        throw new Error(msg);
+
+      let rowsNorm = [];
+      let metaObj = null;
+
+      // prova /programs
+      const r1 = await safeFetchJson(api("/api/protek/programs"));
+      if (r1.ok && Array.isArray(r1.data?.programs)) {
+        rowsNorm = normalizeFromPrograms(r1.data.programs);
+        metaObj = r1.data.meta || r1.data.__meta || null;
       }
-      const j = await res.json();
 
-      // Normalizzo ogni riga applicando i fallback degli alias
-      const programs = Array.isArray(j?.programs) ? j.programs : [];
-      const normalized = programs.map((r, i) => ({
-        id: r.id ?? r.ID ?? i,
-        code: pick(r, ALIAS.code),
-        description: pick(r, ALIAS.description),
-        customer: pick(r, ALIAS.customer),
-        latestState: pick(r, ALIAS.state),
-        startTime: pick(r, ALIAS.start),
-        endTime: pick(r, ALIAS.end),
-        numWorkings: pick(r, ALIAS.count) ?? 0,
-        // mantengo l’originale per eventuale debug
-        __raw: r
-      }));
+      // fallback /jobs se /programs vuoto/assente
+      if (!rowsNorm.length) {
+        const r2 = await safeFetchJson(api("/api/protek/jobs"));
+        if (!r2.ok) {
+          const msg =
+            r2.data?.error ||
+            (r2.status === 404 ? "Endpoint non trovato." : `HTTP ${r2.status}`);
+          throw new Error(msg);
+        }
+        const data = r2.data || {};
+        rowsNorm = normalizeFromJobs(Array.isArray(data.jobs) ? data.jobs : []);
+        metaObj = data.meta || data.__meta || null;
+      }
 
-      setRows(normalized);
+      setRows(rowsNorm);
+      setMeta(metaObj);
       setRefreshedAt(new Date().toISOString());
-      setMeta(j.meta || null);
     } catch (e) {
-      setError(String(e?.message || e));
       setRows([]);
+      setError(String(e?.message || e));
       setMeta(null);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return rows.filter((r) => {
-      const passesSearch =
+      const passQ =
         !q ||
-        String(r.code || "").toLowerCase().includes(q) ||
-        String(r.description || "").toLowerCase().includes(q) ||
-        String(r.customer || "").toLowerCase().includes(q);
-
-      const passesState =
+        (r.code || "").toLowerCase().includes(q) ||
+        (r.description || "").toLowerCase().includes(q) ||
+        (r.customer || "").toLowerCase().includes(q);
+      const passState =
         stateFilter === "ALL" ||
-        String(r.latestState || "").toLowerCase() === stateFilter.toLowerCase();
-
-      return passesSearch && passesState;
+        (r.latestState || "").toLowerCase() === stateFilter.toLowerCase();
+      return passQ && passState;
     });
   }, [rows, search, stateFilter]);
 
@@ -165,16 +196,14 @@ export default function ProtekPage({ onBack }) {
       <div className="flex items-center justify-between">
         <div className="text-xl font-semibold">Protek – Monitor Lavorazioni</div>
         <div className="flex items-center gap-2">
-          {/* Home come Stampanti: usa onBack */}
+          {/* HOME come Stampanti */}
           <button
             className="p-2 rounded-xl shadow hover:shadow-md"
             title="Torna allo Splash"
             aria-label="Home"
             onClick={onBack}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5"
-              viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 10.5L12 3l9 7.5" />
               <path d="M5.5 9.5V20a1.5 1.5 0 0 0 1.5 1.5h10A1.5 1.5 0 0 0 18.5 20V9.5" />
               <path d="M9 21v-6h6v6" />
@@ -186,9 +215,7 @@ export default function ProtekPage({ onBack }) {
             title="Impostazioni Protek"
             onClick={() => setSettingsOpen(true)}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4"
-              viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3"></circle>
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.04 3.4l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c0 .66.39 1.26 1 1.51.16.07.33.11.51.11H21a2 2 0 1 1 0 4h-.09c-.18 0-.35.04-.51.11-.61.25-1 .85-1 1.51z"></path>
             </svg>
@@ -205,16 +232,13 @@ export default function ProtekPage({ onBack }) {
         </div>
       </div>
 
-      {/* INFO BAR */}
+      {/* INFO + FILTRI */}
       <div className="text-xs text-gray-500 flex items-center gap-3 flex-wrap">
         <div>
           Path monitorato:{" "}
           <span className="font-mono">{meta?.monitorPath || "—"}</span>
         </div>
-        <div>
-          • aggiornato:{" "}
-          {refreshedAt ? new Date(refreshedAt).toLocaleString("it-IT") : "—"}
-        </div>
+        <div>• aggiornato: {refreshedAt ? new Date(refreshedAt).toLocaleString("it-IT") : "—"}</div>
         <div className="ml-auto flex items-center gap-2">
           <input
             className="border rounded-lg px-2 py-1 text-sm"
@@ -238,18 +262,10 @@ export default function ProtekPage({ onBack }) {
         </div>
       </div>
 
-      {/* ERRORI */}
+      {/* ERROR */}
       {error && (
         <div className="p-2 rounded bg-red-100 text-red-700 text-sm">
-          {error}{" "}
-          {String(error).toLowerCase().includes("percorso csv") && (
-            <>
-              —{" "}
-              <button className="underline" onClick={() => setSettingsOpen(true)}>
-                Configura ora
-              </button>
-            </>
-          )}
+          {error}
         </div>
       )}
 
@@ -271,39 +287,32 @@ export default function ProtekPage({ onBack }) {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={8} className="p-6 text-center text-gray-400">
-                  Caricamento…
-                </td>
+                <td colSpan={8} className="p-6 text-center text-gray-400">Caricamento…</td>
               </tr>
             )}
             {!loading && !error && filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="p-6 text-center text-gray-400">
-                  Nessun dato da mostrare
-                </td>
+                <td colSpan={8} className="p-6 text-center text-gray-400">Nessun dato da mostrare</td>
               </tr>
             )}
-            {!loading &&
-              !error &&
-              filtered.map((r) => (
-                <tr key={r.id} className="border-t hover:bg-gray-50">
-                  <td className="p-2 font-mono">{r.code || "—"}</td>
-                  <td className="p-2">{r.description || "—"}</td>
-                  <td className="p-2">{r.customer || "—"}</td>
-                  <td className="p-2">{r.latestState || "—"}</td>
-                  <td className="p-2">{fmtDate(r.startTime)}</td>
-                  <td className="p-2">{fmtDate(r.endTime)}</td>
-                  <td className="p-2">{fmtDuration(r.startTime, r.endTime)}</td>
-                  <td className="p-2">{r.numWorkings ?? 0}</td>
-                </tr>
-              ))}
+            {!loading && !error && filtered.map((r) => (
+              <tr key={r.id} className="border-t hover:bg-gray-50">
+                <td className="p-2 font-mono">{r.code || "—"}</td>
+                <td className="p-2">{r.description || "—"}</td>
+                <td className="p-2">{r.customer || "—"}</td>
+                <td className="p-2">{r.latestState || "—"}</td>
+                <td className="p-2">{fmtDate(r.startTime)}</td>
+                <td className="p-2">{fmtDate(r.endTime)}</td>
+                <td className="p-2">{fmtDuration(r.startTime, r.endTime)}</td>
+                <td className="p-2">{r.numWorkings ?? 0}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
 
-      <div className="text-xs text-gray-500">
-        Totale righe: <b>{rows?.length ?? 0}</b>
-      </div>
+      {/* FOOTER */}
+      <div className="text-xs text-gray-500">Totale righe: <b>{rows?.length ?? 0}</b></div>
 
       {/* SLIDE-OVER IMPOSTAZIONI */}
       {settingsOpen && (
@@ -323,6 +332,7 @@ export default function ProtekPage({ onBack }) {
             </div>
             <div className="h-[calc(100%-48px)] overflow-auto">
               <NewSlideProtek
+                server={API_BASE}
                 onSaved={() => load()}
                 onClose={() => {
                   setSettingsOpen(false);
