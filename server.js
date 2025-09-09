@@ -1933,104 +1933,134 @@ app.get('/api/protek/jobs', (req, res) => {
   res.json({ jobs: out, meta: { monitorPath, generatedAt: new Date().toISOString() } });
 });
 
-// === PROTEK: riepilogo PROGRAMMI (PART_PROGRAM) con inizio/fine =================
+// === PROTEK: riepilogo PROGRAMMI (adattato ai tuoi CSV) ========================
 app.get('/api/protek/programs', (req, res) => {
   const { monitorPath } = readProtekSettings();
   if (!monitorPath || !fs.existsSync(monitorPath)) {
     return res.status(404).json({ error: 'Percorso di monitoraggio Protek non impostato o non esistente.' });
   }
 
-  // Carico i CSV necessari
-  const PART_PROGRAMS         = loadCSVFrom(monitorPath, 'PART_PROGRAMS.csv');          // ID, CODE, DESCRIPTION, CREATION_DATE, ...
-  const PART_PROGRAM_WORKINGS = loadCSVFrom(monitorPath, 'PART_PROGRAM_WORKINGS.csv');  // PART_PROGRAM_ID, TIME, ...
-  const LIFECYCLE             = loadCSVFrom(monitorPath, 'LIFECYCLE.csv');              // ENTITY_TYPE, ENTITY_ID, STATE, TIMESTAMP, ...
+  // CSV realmente presenti/strutturati come nei file che mi hai inviato
+  const PART_PROGRAMS         = loadCSVFrom(monitorPath, 'PART_PROGRAMS.csv');          // ID, NAME, PATH, DATE_CREATED, LAST_UPDATED, ...
+  const PART_SUB_PROGRAMS     = loadCSVFrom(monitorPath, 'PART_SUB_PROGRAMS.csv');      // PART_PROGRAM_ID, NESTING_ID, ...
+  const PART_PROGRAM_WORKINGS = loadCSVFrom(monitorPath, 'PART_PROGRAM_WORKINGS.csv');  // PART_PROGRAM_ID, TIME, DATE_CREATED, LAST_UPDATED, ...
+  const NESTINGS_ORDERS       = loadCSVFrom(monitorPath, 'NESTINGS_ORDERS.csv');        // NESTING_ID, JOB_ORDER_ID, PIECES, ...
+  const JOB_ORDERS            = loadCSVFrom(monitorPath, 'JOB_ORDERS.csv');             // ID, JOB_ID, QTY, ...
+  const JOBS                  = loadCSVFrom(monitorPath, 'JOBS.csv');                   // ID, CUSTOMER_ID, ...
+  const CUSTOMERS             = loadCSVFrom(monitorPath, 'CUSTOMERS.csv');              // ID, NAME, ...
 
   // Helpers ---------------------------------------------------------------------
-  const toNum = (v) =>
-    (v === undefined || v === null || v === '' || isNaN(Number(v))) ? 0 : Number(v);
+  const toNum = (v) => (v === undefined || v === null || v === '' || isNaN(Number(v))) ? 0 : Number(v);
 
+  // parse "YYYY-MM-DD HH:mm:ss[.ffff]" -> Date, con fallback sostituendo spazio con 'T'
   const parseTs = (v) => {
     if (!v) return null;
-    const t = new Date(v);
-    return isNaN(t.getTime()) ? null : t;
+    const s = String(v).trim();
+    const iso = s.includes('T') ? s : s.replace(' ', 'T');
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? null : d;
   };
 
-  // Stati che contano come start/end (normalizzati a UPPERCASE)
-  const START_STATES = new Set(['START', 'STARTED', 'RUN', 'RUNNING', 'RESUMED', 'IN_PROGRESS', 'EXECUTING']);
-  const END_STATES   = new Set(['END', 'ENDED', 'FINISH', 'FINISHED', 'COMPLETE', 'COMPLETED', 'STOPPED', 'ABORTED', 'CLOSED']);
+  const baseName = (p) => {
+    try {
+      const raw = String(p || '').trim();
+      if (!raw) return '';
+      // Estrai il nome file senza estensione (se PATH è un path Windows)
+      const only = raw.split(/[\\/]/).pop();
+      return String(only || '').replace(/\.[^.]+$/, '');
+    } catch { return ''; }
+  };
 
-  // Indice lifecycle: per ogni PART_PROGRAM_ID raccogliamo info utili
-  const lifecycleByProgram = new Map(); // id -> { startTs: Date|null, endTs: Date|null, latestState: string, latestTs: Date|null }
-  LIFECYCLE
-    .filter(r => String(r.ENTITY_TYPE).toUpperCase() === 'PART_PROGRAM')
-    .forEach(r => {
-      const id = String(r.ENTITY_ID);
-      const ts = parseTs(r.TIMESTAMP || r.timestamp);
-      const state = String(r.STATE || r.STATUS || '').toUpperCase();
-      if (!ts) return;
+  // Indici per join -------------------------------------------------------------
+  const jobOrderById   = new Map(JOB_ORDERS.map(o => [String(o.ID), o]));
+  const jobById        = new Map(JOBS.map(j => [String(j.ID), j]));
+  const customerById   = new Map(CUSTOMERS.map(c => [String(c.ID), c]));
 
-      if (!lifecycleByProgram.has(id)) {
-        lifecycleByProgram.set(id, { startTs: null, endTs: null, latestState: '', latestTs: null });
-      }
-      const bucket = lifecycleByProgram.get(id);
+  const subProgsByProg = new Map();
+  for (const sp of PART_SUB_PROGRAMS) {
+    const pid = String(sp.PART_PROGRAM_ID || sp.part_program_id || '');
+    if (!pid) continue;
+    if (!subProgsByProg.has(pid)) subProgsByProg.set(pid, []);
+    subProgsByProg.get(pid).push(sp);
+  }
 
-      // primo "vero" inizio (min tra start-states)
-      if (START_STATES.has(state)) {
-        if (!bucket.startTs || ts < bucket.startTs) bucket.startTs = ts;
-      }
+  const nestOrdersByNesting = new Map();
+  for (const no of NESTINGS_ORDERS) {
+    const nid = String(no.NESTING_ID || no.nesting_id || '');
+    if (!nid) continue;
+    if (!nestOrdersByNesting.has(nid)) nestOrdersByNesting.set(nid, []);
+    nestOrdersByNesting.get(nid).push(no);
+  }
 
-      // ultimo "vero" fine (max tra end-states)
-      if (END_STATES.has(state)) {
-        if (!bucket.endTs || ts > bucket.endTs) bucket.endTs = ts;
-      }
+  const workingsByProg = new Map();
+  for (const w of PART_PROGRAM_WORKINGS) {
+    const pid = String(w.PART_PROGRAM_ID || w.part_program_id || '');
+    if (!pid) continue;
+    if (!workingsByProg.has(pid)) workingsByProg.set(pid, []);
+    workingsByProg.get(pid).push(w);
+  }
 
-      // stato più recente (indipendentemente)
-      if (!bucket.latestTs || ts > bucket.latestTs) {
-        bucket.latestTs = ts;
-        bucket.latestState = String(r.STATE || r.STATUS || '');
-      }
-    });
+  // Calcolo stato "euristico" (LIFECYCLE non ha STATE nei tuoi CSV)
+  const nowMs = Date.now();
+  const RUNNING_WINDOW_MS = 30 * 60 * 1000; // 30 minuti
+
+  function inferState(startTs, endTs, lastUpdateTs, totalTimeSec) {
+    if (endTs && totalTimeSec > 0) return 'FINISHED';
+    if (startTs && lastUpdateTs && (nowMs - lastUpdateTs.getTime()) < RUNNING_WINDOW_MS) return 'RUNNING';
+    if (startTs) return 'STARTED';
+    return '';
+  }
 
   // Output ----------------------------------------------------------------------
   const programs = PART_PROGRAMS.map(p => {
-    const id          = String(p.ID);
-    const code        = p.CODE || '';
-    const description = p.DESCRIPTION || '';
+    const id   = String(p.ID);
+    const name = p.NAME || '';               // lo mostriamo come "Program Code"
+    const path = p.PATH || '';               // usato per una descrizione di fallback
 
-    // CREATION_DATE come fallback di inizio se mancano eventi start
-    const creationDate = parseTs(p.CREATION_DATE || p.creation_date);
+    // Working aggregati
+    const wks = workingsByProg.get(id) || [];
+    let totalTime = 0;
+    let firstTs = parseTs(p.DATE_CREATED || p.date_created) || null; // fallback: creazione programma
+    let lastTs  = parseTs(p.LAST_UPDATED || p.last_updated) || null;
 
-    // Working time aggregato
-    const workings = PART_PROGRAM_WORKINGS.filter(w => String(w.PART_PROGRAM_ID) === id);
-    const totalTime = workings.reduce((acc, w) => acc + toNum(w.TIME), 0); // in secondi (presunto)
-    const numWorkings = workings.length;
-
-    // Lifecycle info
-    const lc = lifecycleByProgram.get(id) || { startTs: null, endTs: null, latestState: '' };
-    const startTime = lc.startTs || creationDate || null;    // preferisci start reale, poi creation
-    const endTime   = lc.endTs   || null;                    // fine reale se presente
-
-    // Durata "visuale": se abbiamo totalTime usiamo quello; altrimenti differenza tra start/fine
-    let durationSeconds = 0;
-    if (totalTime > 0) {
-      durationSeconds = Math.floor(totalTime);
-    } else if (startTime && endTime) {
-      durationSeconds = Math.max(0, Math.floor((endTime - startTime) / 1000));
+    for (const w of wks) {
+      totalTime += toNum(w.TIME);
+      const c = parseTs(w.DATE_CREATED || w.date_created);
+      const u = parseTs(w.LAST_UPDATED || w.last_updated);
+      if (c && (!firstTs || c < firstTs)) firstTs = c;
+      if (u && (!lastTs  || u > lastTs))  lastTs  = u;
     }
+
+    // Cliente (join: PART_SUB_PROGRAMS → NESTINGS_ORDERS → JOB_ORDERS → JOBS → CUSTOMERS)
+    let customerName = '';
+    const subs = subProgsByProg.get(id) || [];
+    for (const sp of subs) {
+      const nid = String(sp.NESTING_ID || sp.nesting_id || '');
+      if (!nid) continue;
+      const orders = nestOrdersByNesting.get(nid) || [];
+      for (const no of orders) {
+        const jo = jobOrderById.get(String(no.JOB_ORDER_ID));
+        if (!jo) continue;
+        const job = jobById.get(String(jo.JOB_ID));
+        if (!job) continue;
+        const cust = customerById.get(String(job.CUSTOMER_ID));
+        if (cust && cust.NAME) { customerName = cust.NAME; break; }
+      }
+      if (customerName) break;
+    }
+
+    // Stato euristico
+    const latestState = inferState(firstTs, lastTs, lastTs, totalTime);
 
     return {
       id,
-      code,
-      description,
-      creationDate: creationDate ? creationDate.toISOString() : '',
-
-      // nuovi campi richiesti
-      startTime: startTime ? startTime.toISOString() : '',
-      endTime:   endTime   ? endTime.toISOString()   : '',
-
-      latestState: lc.latestState || '',
-      totalTime: durationSeconds,     // in secondi (frontend può formattare hh:mm:ss)
-      numWorkings
+      code: name || baseName(path),                 // Program Code
+      description: baseName(path) || name || '',   // fallback sensato
+      customer: customerName || '',
+      latestState,
+      startTime: firstTs ? firstTs.toISOString() : '',
+      endTime:   lastTs  ? lastTs.toISOString()  : '',
+      numWorkings: wks.length
     };
   });
 
