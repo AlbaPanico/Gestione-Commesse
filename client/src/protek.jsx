@@ -1,7 +1,6 @@
 // File: protek.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import NewSlideProtek from "./NewSlideProtek";
-import SplashScreen from "./SplashScreen"; // ⬅️ usa la tua SplashScreen (non il login)
 
 /** Utilità formattazione */
 function fmtDate(ts) {
@@ -30,7 +29,7 @@ function fmtDuration(start, end) {
   return `${hh}h ${mm}m`;
 }
 
-export default function ProtekPage() {
+export default function ProtekPage({ onBack }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -41,9 +40,6 @@ export default function ProtekPage() {
 
   // slide impostazioni come in Stampanti (ingranaggio)
   const [settingsOpen, setSettingsOpen] = useState(false);
-
-  // ⬇️ NUOVO: overlay SplashScreen (Home)
-  const [splashOpen, setSplashOpen] = useState(false);
 
   const load = async () => {
     try {
@@ -99,56 +95,29 @@ export default function ProtekPage() {
       <div className="flex items-center justify-between">
         <div className="text-xl font-semibold">Protek – Monitor Lavorazioni</div>
         <div className="flex items-center gap-2">
-          {/* HOME → vai direttamente alla Home (non "indietro") */}
-<button
-  className="p-2 rounded-xl shadow hover:shadow-md"
-  title="Vai alla Home"
-  aria-label="Home"
-  onClick={() => {
-    // 0) hook app-specific se esiste
-    try {
-      if (typeof window.__goHome === "function") { window.__goHome(); return; }
-    } catch {}
+          {/* HOME → identico a Stampanti: chiama onBack */}
+          <button
+            className="p-2 rounded-xl shadow hover:shadow-md"
+            title="Torna allo Splash"
+            aria-label="Home"
+            onClick={onBack}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-5 h-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M3 10.5L12 3l9 7.5" />
+              <path d="M5.5 9.5V20a1.5 1.5 0 0 0 1.5 1.5h10A1.5 1.5 0 0 0 18.5 20V9.5" />
+              <path d="M9 21v-6h6v6" />
+            </svg>
+          </button>
 
-    // 1) evento globale per chi usa un router/app-shell
-    try {
-      window.dispatchEvent(new CustomEvent("app:navigate", { detail: { to: "home" } }));
-    } catch {}
-
-    // 2) path esplicito Home (HTML5 routing)
-    try {
-      const base = (import.meta?.env?.BASE_URL || "/");
-      const root = base.endsWith("/") ? base : base + "/";
-      window.history.pushState({}, "", root + "home");
-      window.dispatchEvent(new PopStateEvent("popstate"));
-      return;
-    } catch {}
-
-    // 3) fallback hash routing Home
-    try { window.location.hash = "#/home"; return; } catch {}
-
-    // 4) fallback finale: Splash (se Home non esiste come rotta)
-    try {
-      const base = (import.meta?.env?.BASE_URL || "/");
-      const root = base.endsWith("/") ? base : base + "/";
-      window.location.assign(root + "splash");
-    } catch { window.location.assign("/splash"); }
-  }}
->
-  {/* icona casa */}
-  <svg xmlns="http://www.w3.org/2000/svg"
-    className="w-5 h-5" viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth="1.5"
-    strokeLinecap="round" strokeLinejoin="round">
-    <path d="M3 10.5L12 3l9 7.5" />
-    <path d="M5.5 9.5V20a1.5 1.5 0 0 0 1.5 1.5h10A1.5 1.5 0 0 0 18.5 20V9.5" />
-    <path d="M9 21v-6h6v6" />
-  </svg>
-</button>
-
-
-
-          {/* Impostazioni */}
           <button
             className="px-3 py-1 rounded-xl shadow text-sm hover:shadow-md flex items-center gap-2"
             title="Impostazioni Protek"
@@ -307,38 +276,6 @@ export default function ProtekPage() {
               />
             </div>
           </div>
-        </div>
-      )}
-
-      {/* ⬇️ OVERLAY SPLASHSCREEN (Home) */}
-      {splashOpen && (
-        <div className="fixed inset-0 z-[60] bg-black">
-          {/* Bottone chiudi overlay Splash */}
-          <button
-            className="absolute top-3 right-3 z-[61] px-3 py-1 rounded-xl shadow text-sm hover:shadow-md bg-white"
-            onClick={() => setSplashOpen(false)}
-            title="Chiudi"
-          >
-            Chiudi
-          </button>
-
-          {/* Monta la tua SplashScreen a pieno schermo */}
-          <SplashScreen
-            onContinue={() => setSplashOpen(false)}
-            onShowProtek={() => setSplashOpen(false)} // siamo già su Protek
-            onShowStampanti={() => {
-              // prova a segnalare al contenitore che vuoi Stampanti
-              try {
-                window.dispatchEvent(
-                  new CustomEvent("app:navigate", { detail: { to: "stampanti" } })
-                );
-              } catch {}
-              // in alternativa, se usi hash routing
-              try {
-                window.location.hash = "#/stampanti";
-              } catch {}
-            }}
-          />
         </div>
       )}
     </div>
