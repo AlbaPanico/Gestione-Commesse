@@ -1,6 +1,7 @@
 // File: protek.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import NewSlideProtek from "./NewSlideProtek";
+import SplashScreen from "./SplashScreen"; // ⬅️ usa la tua SplashScreen (non il login)
 
 /** Utilità formattazione */
 function fmtDate(ts) {
@@ -41,6 +42,9 @@ export default function ProtekPage() {
   // slide impostazioni come in Stampanti (ingranaggio)
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+  // ⬇️ NUOVO: overlay SplashScreen (Home)
+  const [splashOpen, setSplashOpen] = useState(false);
+
   const load = async () => {
     try {
       setLoading(true);
@@ -48,9 +52,10 @@ export default function ProtekPage() {
       const res = await fetch("/api/protek/programs");
       if (!res.ok) {
         // se 404 è quasi sempre monitorPath non configurato
-        const msg = res.status === 404
-          ? "Percorso CSV Protek non configurato o non raggiungibile."
-          : `HTTP ${res.status}`;
+        const msg =
+          res.status === 404
+            ? "Percorso CSV Protek non configurato o non raggiungibile."
+            : `HTTP ${res.status}`;
         throw new Error(msg);
       }
       const j = await res.json();
@@ -92,63 +97,63 @@ export default function ProtekPage() {
     <div className="w-full h-full flex flex-col gap-3 p-4">
       {/* HEADER + TOOLBAR (come Stampanti) */}
       <div className="flex items-center justify-between">
-  <div className="text-xl font-semibold">Protek – Monitor Lavorazioni</div>
-  <div className="flex items-center gap-2">
-    {/* HOME → forza redirect alla root (SplashScreen) */}
-<button
-  className="p-2 rounded-xl shadow hover:shadow-md"
-  title="Torna alla SplashScreen"
-  aria-label="Home"
-  onClick={() => {
-    try {
-      // Usa la base dell’app (supporta anche deploy in sottocartelle Vite)
-      const base = (import.meta?.env?.BASE_URL || "/");
-      // Se BASE_URL termina con '/', evitiamo doppi slash
-      const url = base.endsWith("/") ? base : base + "/";
-      window.location.href = url; // redirect “duro” -> SplashScreen
-    } catch {
-      window.location.href = "/"; // fallback
-    }
-  }}
->
-  {/* icona casa */}
-  <svg xmlns="http://www.w3.org/2000/svg"
-    className="w-5 h-5" viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth="1.5"
-    strokeLinecap="round" strokeLinejoin="round">
-    <path d="M3 10.5L12 3l9 7.5" />
-    <path d="M5.5 9.5V20a1.5 1.5 0 0 0 1.5 1.5h10A1.5 1.5 0 0 0 18.5 20V9.5" />
-    <path d="M9 21v-6h6v6" />
-  </svg>
-</button>
+        <div className="text-xl font-semibold">Protek – Monitor Lavorazioni</div>
+        <div className="flex items-center gap-2">
+          {/* HOME → apre SplashScreen in overlay, NON il login */}
+          <button
+            className="p-2 rounded-xl shadow hover:shadow-md"
+            title="Torna alla SplashScreen"
+            aria-label="Home"
+            onClick={() => setSplashOpen(true)}
+          >
+            {/* icona casa */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-5 h-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M3 10.5L12 3l9 7.5" />
+              <path d="M5.5 9.5V20a1.5 1.5 0 0 0 1.5 1.5h10A1.5 1.5 0 0 0 18.5 20V9.5" />
+              <path d="M9 21v-6h6v6" />
+            </svg>
+          </button>
 
+          {/* Impostazioni */}
+          <button
+            className="px-3 py-1 rounded-xl shadow text-sm hover:shadow-md flex items-center gap-2"
+            title="Impostazioni Protek"
+            onClick={() => setSettingsOpen(true)}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.04 3.4l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c0 .66.39 1.26 1 1.51.16.07.33.11.51.11H21a2 2 0 1 1 0 4h-.09c-.18 0-.35.04-.51.11-.61.25-1 .85-1 1.51z"></path>
+            </svg>
+            Impostazioni
+          </button>
 
-    {/* Impostazioni */}
-    <button
-      className="px-3 py-1 rounded-xl shadow text-sm hover:shadow-md flex items-center gap-2"
-      title="Impostazioni Protek"
-      onClick={() => setSettingsOpen(true)}
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4"
-        viewBox="0 0 24 24" fill="none" stroke="currentColor"
-        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="3"></circle>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.04 3.4l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c0 .66.39 1.26 1 1.51.16.07.33.11.51.11H21a2 2 0 1 1 0 4h-.09c-.18 0-.35.04-.51.11-.61.25-1 .85-1 1.51z"></path>
-      </svg>
-      Impostazioni
-    </button>
-
-    <button
-      className="px-3 py-1 rounded-xl shadow text-sm hover:shadow-md"
-      onClick={load}
-      title="Aggiorna"
-    >
-      Aggiorna
-    </button>
-  </div>
-</div>
-
-
+          <button
+            className="px-3 py-1 rounded-xl shadow text-sm hover:shadow-md"
+            onClick={load}
+            title="Aggiorna"
+          >
+            Aggiorna
+          </button>
+        </div>
+      </div>
 
       {/* BARRA INFO + FILTRI (come Stampanti) */}
       <div className="text-xs text-gray-500 flex items-center gap-3 flex-wrap">
@@ -190,10 +195,7 @@ export default function ProtekPage() {
           {String(error).toLowerCase().includes("percorso csv") && (
             <>
               —{" "}
-              <button
-                className="underline"
-                onClick={() => setSettingsOpen(true)}
-              >
+              <button className="underline" onClick={() => setSettingsOpen(true)}>
                 Configura ora
               </button>
             </>
@@ -254,7 +256,7 @@ export default function ProtekPage() {
         Totale righe: <b>{rows?.length ?? 0}</b>
       </div>
 
-      {/* SLIDE-OVER IMPOSTAZIONI: apre NewSlideProtek (coerenza con tua richiesta) */}
+      {/* SLIDE-OVER IMPOSTAZIONI */}
       {settingsOpen && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-[1px] flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-xl w-[min(1100px,96vw)] h-[min(90vh,820px)] overflow-hidden">
@@ -264,20 +266,15 @@ export default function ProtekPage() {
                 className="px-3 py-1 rounded-xl shadow text-sm hover:shadow-md"
                 onClick={() => {
                   setSettingsOpen(false);
-                  // dopo la chiusura, prova a ricaricare i programmi
                   setTimeout(load, 100);
                 }}
               >
                 Chiudi
               </button>
             </div>
-            {/* NewSlideProtek viene montato dentro la slide come pagina di setup */}
             <div className="h-[calc(100%-48px)] overflow-auto">
               <NewSlideProtek
-                onSaved={() => {
-                  // ricarico Protek appena salvi
-                  load();
-                }}
+                onSaved={() => load()}
                 onClose={() => {
                   setSettingsOpen(false);
                   setTimeout(load, 100);
@@ -285,6 +282,38 @@ export default function ProtekPage() {
               />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ⬇️ OVERLAY SPLASHSCREEN (Home) */}
+      {splashOpen && (
+        <div className="fixed inset-0 z-[60] bg-black">
+          {/* Bottone chiudi overlay Splash */}
+          <button
+            className="absolute top-3 right-3 z-[61] px-3 py-1 rounded-xl shadow text-sm hover:shadow-md bg-white"
+            onClick={() => setSplashOpen(false)}
+            title="Chiudi"
+          >
+            Chiudi
+          </button>
+
+          {/* Monta la tua SplashScreen a pieno schermo */}
+          <SplashScreen
+            onContinue={() => setSplashOpen(false)}
+            onShowProtek={() => setSplashOpen(false)} // siamo già su Protek
+            onShowStampanti={() => {
+              // prova a segnalare al contenitore che vuoi Stampanti
+              try {
+                window.dispatchEvent(
+                  new CustomEvent("app:navigate", { detail: { to: "stampanti" } })
+                );
+              } catch {}
+              // in alternativa, se usi hash routing
+              try {
+                window.location.hash = "#/stampanti";
+              } catch {}
+            }}
+          />
         </div>
       )}
     </div>
