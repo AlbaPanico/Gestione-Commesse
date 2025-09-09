@@ -99,49 +99,53 @@ export default function ProtekPage() {
       <div className="flex items-center justify-between">
         <div className="text-xl font-semibold">Protek – Monitor Lavorazioni</div>
         <div className="flex items-center gap-2">
-          {/* HOME → torna indietro (history.back), senza overlay */}
+          {/* HOME → vai direttamente alla Home (non "indietro") */}
 <button
   className="p-2 rounded-xl shadow hover:shadow-md"
-  title="Torna indietro"
+  title="Vai alla Home"
   aria-label="Home"
   onClick={() => {
+    // 0) hook app-specific se esiste
     try {
-      // Preferisci tornare indietro nella cronologia
-      if (window.history && window.history.length > 1) {
-        window.history.back();
-        return;
-      }
+      if (typeof window.__goHome === "function") { window.__goHome(); return; }
     } catch {}
 
-    // Fallback 1: segnala al contenitore (se esiste un listener centrale)
+    // 1) evento globale per chi usa un router/app-shell
     try {
-      window.dispatchEvent(new CustomEvent("app:navigate", { detail: { to: "splash" } }));
+      window.dispatchEvent(new CustomEvent("app:navigate", { detail: { to: "home" } }));
+    } catch {}
+
+    // 2) path esplicito Home (HTML5 routing)
+    try {
+      const base = (import.meta?.env?.BASE_URL || "/");
+      const root = base.endsWith("/") ? base : base + "/";
+      window.history.pushState({}, "", root + "home");
+      window.dispatchEvent(new PopStateEvent("popstate"));
       return;
     } catch {}
 
-    // Fallback 2: prova hash routing
-    try { window.location.hash = "#/splash"; return; } catch {}
+    // 3) fallback hash routing Home
+    try { window.location.hash = "#/home"; return; } catch {}
 
-    // Fallback 3: ultima spiaggia (può riportare al login se root è protetta)
-    try { window.location.assign("/splash"); } catch {}
+    // 4) fallback finale: Splash (se Home non esiste come rotta)
+    try {
+      const base = (import.meta?.env?.BASE_URL || "/");
+      const root = base.endsWith("/") ? base : base + "/";
+      window.location.assign(root + "splash");
+    } catch { window.location.assign("/splash"); }
   }}
 >
   {/* icona casa */}
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    className="w-5 h-5"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
+  <svg xmlns="http://www.w3.org/2000/svg"
+    className="w-5 h-5" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="1.5"
+    strokeLinecap="round" strokeLinejoin="round">
     <path d="M3 10.5L12 3l9 7.5" />
     <path d="M5.5 9.5V20a1.5 1.5 0 0 0 1.5 1.5h10A1.5 1.5 0 0 0 18.5 20V9.5" />
     <path d="M9 21v-6h6v6" />
   </svg>
 </button>
+
 
 
           {/* Impostazioni */}
