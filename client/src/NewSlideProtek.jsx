@@ -32,7 +32,11 @@ async function safeFetchJson(input, init) {
   return { ok: res.ok, status: res.status, data, text, __nonJson: typeof data === "undefined" };
 }
 
-export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
+export default function NewSlideProtek({ onSaved, onClose, asPanel, server }) {
+  // Base URL assoluta come in Stampanti (prop -> env -> fallback IP)
+  const API_BASE = (server || import.meta?.env?.VITE_API_BASE || "http://192.168.1.250:3001").replace(/\/+$/,"");
+  const api = (p) => `${API_BASE}${p.startsWith("/") ? p : `/${p}`}`;
+
   // Modalità pannello quando aperto dall’ingranaggio
   const panelMode = (typeof asPanel === "boolean") ? asPanel : (typeof onClose === "function");
 
@@ -61,7 +65,7 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
 
   // ────────────────────────────────────────────────────────────────────────────
   async function reloadSettingsFromServer() {
-    const r = await safeFetchJson("/api/protek/settings");
+    const r = await safeFetchJson(api("/api/protek/settings"));
     if (!r.ok) {
       setError("Errore nel recupero impostazioni Protek.");
       return null;
@@ -97,7 +101,7 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
     setInfo("");
     setSuccess("");
     try {
-      const r = await safeFetchJson("/api/protek/jobs");
+      const r = await safeFetchJson(api("/api/protek/jobs"));
       if (!r.ok) {
         const msg = r.data?.error || `HTTP ${r.status}`;
         setError(
@@ -125,113 +129,112 @@ export default function NewSlideProtek({ onSaved, onClose, asPanel }) {
 
   // ────────────────────────────────────────────────────────────────────────────
   // Verifica percorso: prova diagnose-path, al 404 fa fallback su /api/protek/csv-direct
-async function verifyPath() {
-  setVerifyBusy(true);
-  setVerifyStatus("idle");
-  setVerifyMsg("");
-  setVerifyDetails(null);
-  setVerifyOpen(false);
-  setError("");
-
-  // helper locale: verifica base tramite csv-direct
-  const fallbackCsvDirect = async (pathToTest) => {
-    const r2 = await safeFetchJson("/api/protek/csv-direct", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify({ monitorPath: pathToTest }),
-    });
-    if (!r2.ok) {
-      setVerifyStatus("fail");
-      setVerifyMsg(r2.data?.error || `HTTP ${r2.status}: percorso non raggiungibile.`);
-      setVerifyDetails(null);
-      setVerifyOpen(true);
-      return;
-    }
-    const payload = r2.data || {};
-    const jobsCount = Array.isArray(payload.JOBS) ? payload.JOBS.length : 0;
-    const metaPath = payload.__meta?.monitorPath ? ` (${payload.__meta.monitorPath})` : "";
-    setVerifyStatus("ok");
-    setVerifyMsg(`Valido (verifica base). JOBS.csv: ${jobsCount} righe${metaPath}`);
-    setVerifyDetails(null); // niente pannello dettagli nella verifica base
+  async function verifyPath() {
+    setVerifyBusy(true);
+    setVerifyStatus("idle");
+    setVerifyMsg("");
+    setVerifyDetails(null);
     setVerifyOpen(false);
-  };
+    setError("");
 
-  try {
-    const pathToTest = (monitorPath || "").trim();
-    if (!pathToTest) {
-      setVerifyStatus("fail");
-      setVerifyMsg("Inserisci un percorso prima di verificare.");
-      return;
-    }
+    // helper locale: verifica base tramite csv-direct
+    const fallbackCsvDirect = async (pathToTest) => {
+      const r2 = await safeFetchJson(api("/api/protek/csv-direct"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify({ monitorPath: pathToTest }),
+      });
+      if (!r2.ok) {
+        setVerifyStatus("fail");
+        setVerifyMsg(r2.data?.error || `HTTP ${r2.status}: percorso non raggiungibile.`);
+        setVerifyDetails(null);
+        setVerifyOpen(true);
+        return;
+      }
+      const payload = r2.data || {};
+      const jobsCount = Array.isArray(payload.JOBS) ? payload.JOBS.length : 0;
+      const metaPath = payload.__meta?.monitorPath ? ` (${payload.__meta.monitorPath})` : "";
+      setVerifyStatus("ok");
+      setVerifyMsg(`Valido (verifica base). JOBS.csv: ${jobsCount} righe${metaPath}`);
+      setVerifyDetails(null); // niente pannello dettagli nella verifica base
+      setVerifyOpen(false);
+    };
 
-    const r = await safeFetchJson("/api/protek/diagnose-path", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify({ monitorPath: pathToTest }),
-    });
+    try {
+      const pathToTest = (monitorPath || "").trim();
+      if (!pathToTest) {
+        setVerifyStatus("fail");
+        setVerifyMsg("Inserisci un percorso prima di verificare.");
+        return;
+      }
 
-    // Se l'endpoint non esiste (404), fallback immediato a csv-direct
-    if (r.status === 404) {
-      await fallbackCsvDirect(pathToTest);
-      return;
-    }
+      const r = await safeFetchJson(api("/api/protek/diagnose-path"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify({ monitorPath: pathToTest }),
+      });
 
-    // Altri errori: mostra errore e dettagli (se ci sono)
-    if (!r.ok) {
-      const msg = r.data?.error || `HTTP ${r.status}: percorso non raggiungibile.`;
-      setVerifyStatus("fail");
+      // Se l'endpoint non esiste (404), fallback immediato a csv-direct
+      if (r.status === 404) {
+        await fallbackCsvDirect(pathToTest);
+        return;
+      }
+
+      // Altri errori: mostra errore e dettagli (se ci sono)
+      if (!r.ok) {
+        const msg = r.data?.error || `HTTP ${r.status}: percorso non raggiungibile.`;
+        setVerifyStatus("fail");
+        setVerifyMsg(msg);
+        setVerifyDetails(r.data || null);
+        setVerifyOpen(true);
+        return;
+      }
+
+      // Diagnostica completa disponibile
+      const d = r.data || {};
+      setVerifyDetails(d);
+
+      if (!d.existsPath) {
+        setVerifyStatus("fail");
+        setVerifyMsg("Percorso inesistente o non raggiungibile dal server.");
+        setVerifyOpen(true);
+        return;
+      }
+      if (!d.canRead) {
+        setVerifyStatus("fail");
+        setVerifyMsg("Accesso negato: controlla i permessi della share sul server.");
+        setVerifyOpen(true);
+        return;
+      }
+
+      const expectedCount = Object.keys(d.files || {}).length;
+      const found = Number(d.readableCount || 0);
+      const missingList = Array.isArray(d.missing) ? d.missing : [];
+
+      if (found === 0) {
+        setVerifyStatus("fail");
+        setVerifyMsg("Cartella raggiunta ma nessun CSV atteso presente.");
+        setVerifyOpen(true);
+        return;
+      }
+
+      let msg = `Valido. Trovati ${found}/${expectedCount} CSV attesi.`;
+      if (missingList.length) {
+        const preview = missingList.slice(0, 3).join(", ");
+        msg += ` Mancano: ${preview}${missingList.length > 3 ? "…" : ""}`;
+      }
+
+      setVerifyStatus("ok");
       setVerifyMsg(msg);
-      setVerifyDetails(r.data || null);
       setVerifyOpen(true);
-      return;
-    }
-
-    // Diagnostica completa disponibile
-    const d = r.data || {};
-    setVerifyDetails(d);
-
-    if (!d.existsPath) {
+    } catch (e) {
       setVerifyStatus("fail");
-      setVerifyMsg("Percorso inesistente o non raggiungibile dal server.");
+      setVerifyMsg(String(e));
       setVerifyOpen(true);
-      return;
+    } finally {
+      setVerifyBusy(false);
     }
-    if (!d.canRead) {
-      setVerifyStatus("fail");
-      setVerifyMsg("Accesso negato: controlla i permessi della share sul server.");
-      setVerifyOpen(true);
-      return;
-    }
-
-    const expectedCount = Object.keys(d.files || {}).length;
-    const found = Number(d.readableCount || 0);
-    const missingList = Array.isArray(d.missing) ? d.missing : [];
-
-    if (found === 0) {
-      setVerifyStatus("fail");
-      setVerifyMsg("Cartella raggiunta ma nessun CSV atteso presente.");
-      setVerifyOpen(true);
-      return;
-    }
-
-    let msg = `Valido. Trovati ${found}/${expectedCount} CSV attesi.`;
-    if (missingList.length) {
-      const preview = missingList.slice(0, 3).join(", ");
-      msg += ` Mancano: ${preview}${missingList.length > 3 ? "…" : ""}`;
-    }
-
-    setVerifyStatus("ok");
-    setVerifyMsg(msg);
-    setVerifyOpen(true);
-  } catch (e) {
-    setVerifyStatus("fail");
-    setVerifyMsg(String(e));
-    setVerifyOpen(true);
-  } finally {
-    setVerifyBusy(false);
   }
-}
-
 
   // ────────────────────────────────────────────────────────────────────────────
   async function saveSettings(e) {
@@ -249,7 +252,7 @@ async function verifyPath() {
 
     try {
       setSaving(true);
-      const r = await safeFetchJson("/api/protek/settings", {
+      const r = await safeFetchJson(api("/api/protek/settings"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
