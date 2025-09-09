@@ -99,29 +99,50 @@ export default function ProtekPage() {
       <div className="flex items-center justify-between">
         <div className="text-xl font-semibold">Protek – Monitor Lavorazioni</div>
         <div className="flex items-center gap-2">
-          {/* HOME → apre SplashScreen in overlay, NON il login */}
-          <button
-            className="p-2 rounded-xl shadow hover:shadow-md"
-            title="Torna alla SplashScreen"
-            aria-label="Home"
-            onClick={() => setSplashOpen(true)}
-          >
-            {/* icona casa */}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="w-5 h-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M3 10.5L12 3l9 7.5" />
-              <path d="M5.5 9.5V20a1.5 1.5 0 0 0 1.5 1.5h10A1.5 1.5 0 0 0 18.5 20V9.5" />
-              <path d="M9 21v-6h6v6" />
-            </svg>
-          </button>
+          {/* HOME → torna indietro (history.back), senza overlay */}
+<button
+  className="p-2 rounded-xl shadow hover:shadow-md"
+  title="Torna indietro"
+  aria-label="Home"
+  onClick={() => {
+    try {
+      // Preferisci tornare indietro nella cronologia
+      if (window.history && window.history.length > 1) {
+        window.history.back();
+        return;
+      }
+    } catch {}
+
+    // Fallback 1: segnala al contenitore (se esiste un listener centrale)
+    try {
+      window.dispatchEvent(new CustomEvent("app:navigate", { detail: { to: "splash" } }));
+      return;
+    } catch {}
+
+    // Fallback 2: prova hash routing
+    try { window.location.hash = "#/splash"; return; } catch {}
+
+    // Fallback 3: ultima spiaggia (può riportare al login se root è protetta)
+    try { window.location.assign("/splash"); } catch {}
+  }}
+>
+  {/* icona casa */}
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="w-5 h-5"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M3 10.5L12 3l9 7.5" />
+    <path d="M5.5 9.5V20a1.5 1.5 0 0 0 1.5 1.5h10A1.5 1.5 0 0 0 18.5 20V9.5" />
+    <path d="M9 21v-6h6v6" />
+  </svg>
+</button>
+
 
           {/* Impostazioni */}
           <button
