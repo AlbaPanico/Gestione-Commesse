@@ -100,3 +100,39 @@ reportDdtPath']
 [2025-09-08 13:36:55] DEBUG dedupe: sovrascrivo riga esistente 15 per DDT 0091W
 [2025-09-08 13:36:55] DEBUG prezzoVendita ricevuto='' -> usato=0.0
 [2025-09-08 13:36:55] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 15) | NomeCommessa='tegolino compensazione M1' | Codice='C4960' | PrezzoVendita=0.0 | PDF_IN='DDT_0091W_C4960_08-09-2025.pdf'
+[2025-09-09 08:03:01] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita']
+[2025-09-09 08:03:01] DEBUG nomeCommessa='PUPA_BANCO 120 ILLUMINATO cod. 300S046B_P_C4907' descrizione='Assembraggio PUPA_BANCO 120 ILLUMINATO cod. 300S046B_P_C4907'
+[2025-09-09 08:03:01] DEBUG estrazione: sorgente='Assembraggio PUPA_BANCO 120 ILLUMINATO cod. 300S046B_P_C4907' -> estratto='BANCO 120 ILLUMINATO cod. 300S046B'
+[2025-09-09 08:03:01] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\PUPA_BANCO 120 ILLUMINATO cod. 300S046B_P_C4907\MATERIALI' esiste=True
+[2025-09-09 08:03:01] DEBUG codice_commessa_norm='C4907' (raw='C4907')
+[2025-09-09 08:03:01] DEBUG MATERIALI contiene (7 file): DDT_0042T_C4907_08-09-2025.pdf, DDT_0043T_C4907_08-09-2025.pdf, DDT_0092W_C4907_09-09-2025.pdf, DISTINTA com. 4907 A.xlsx, DISTINTA com. 4907 B.xlsx, DISTINTA com. 4907 C.xlsx, DistintaMateriali_PUPA_BANCO 120 ILLUMINATO cod. 300S046B_P_C4907.xlsx
+[2025-09-09 08:03:01] DEBUG match regex ENTRATA: DDT_0092W_C4907_09-09-2025.pdf
+[2025-09-09 08:03:01] DEBUG MATERIALI contiene (7 file): DDT_0042T_C4907_08-09-2025.pdf, DDT_0043T_C4907_08-09-2025.pdf, DDT_0092W_C4907_09-09-2025.pdf, DISTINTA com. 4907 A.xlsx, DISTINTA com. 4907 B.xlsx, DISTINTA com. 4907 C.xlsx, DistintaMateriali_PUPA_BANCO 120 ILLUMINATO cod. 300S046B_P_C4907.xlsx
+[2025-09-09 08:03:01] DEBUG match regex USCITA: DDT_0043T_C4907_08-09-2025.pdf
+[2025-09-09 08:03:01] DEBUG dedupe: nessuna riga esistente, scrivo in nuova riga 16
+[2025-09-09 08:03:01] DEBUG prezzoVendita ricevuto='535' -> usato=535.0
+[2025-09-09 08:03:01] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 16) | NomeCommessa='BANCO 120 ILLUMINATO cod. 300S046B' | Codice='C4907' | PrezzoVendita=535.0 | PDF_IN='DDT_0092W_C4907_09-09-2025.pdf'
+[2025-09-09 08:03:02] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita', 'reportDdtPath']
+[2025-09-09 08:03:02] DEBUG nomeCommessa='PUPA_BANCO 120 ILLUMINATO cod. 300S046B_P_C4907' descrizione='Assembraggio PUPA_BANCO 120 ILLUMINATO cod. 300S046B_P_C4907'
+[2025-09-09 08:03:02] DEBUG estrazione: sorgente='Assembraggio PUPA_BANCO 120 ILLUMINATO cod. 300S046B_P_C4907' -> estratto='BANCO 120 ILLUMINATO cod. 300S046B'
+[2025-09-09 08:03:02] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\PUPA_BANCO 120 ILLUMINATO cod. 300S046B_P_C4907\MATERIALI' esiste=True
+[2025-09-09 08:03:02] DEBUG codice_commessa_norm='C4907' (raw='C4907')
+[2025-09-09 08:03:02] DEBUG MATERIALI contiene (7 file): DDT_0042T_C4907_08-09-2025.pdf, DDT_0043T_C4907_08-09-2025.pdf, DDT_0092W_C4907_09-09-2025.pdf, DISTINTA com. 4907 A.xlsx, DISTINTA com. 4907 B.xlsx, DISTINTA com. 4907 C.xlsx, DistintaMateriali_PUPA_BANCO 120 ILLUMINATO cod. 300S046B_P_C4907.xlsx
+[2025-09-09 08:03:02] DEBUG match regex ENTRATA: DDT_0092W_C4907_09-09-2025.pdf
+[2025-09-09 08:03:02] DEBUG MATERIALI contiene (7 file): DDT_0042T_C4907_08-09-2025.pdf, DDT_0043T_C4907_08-09-2025.pdf, DDT_0092W_C4907_09-09-2025.pdf, DISTINTA com. 4907 A.xlsx, DISTINTA com. 4907 B.xlsx, DISTINTA com. 4907 C.xlsx, DistintaMateriali_PUPA_BANCO 120 ILLUMINATO cod. 300S046B_P_C4907.xlsx
+[2025-09-09 08:03:02] DEBUG match regex USCITA: DDT_0043T_C4907_08-09-2025.pdf
+[2025-09-09 08:03:02] DEBUG dedupe: sovrascrivo riga esistente 16 per DDT 0092W
+[2025-09-09 08:03:02] DEBUG prezzoVendita ricevuto='535' -> usato=535.0
+[2025-09-09 08:03:02] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 16) | NomeCommessa='BANCO 120 ILLUMINATO cod. 300S046B' | Codice='C4907' | PrezzoVendita=535.0 | PDF_IN='DDT_0092W_C4907_09-09-2025.pdf'
+[2025-09-09 08:03:03] DEBUG DATI keys=['codiceCommessa', 'quantita', 'folderPath', 'colli', 'oreLavorazione', 'nomeCommessa', 'prezzoVendita', 'descrizione']
+[2025-09-09 08:03:03] DEBUG nomeCommessa='PUPA_BANCO 120 ILLUMINATO cod. 300S046B_P_C4907' descrizione='Assembraggio PUPA_BANCO 120 ILLUMINATO cod. 300S046B_P_C4907'
+[2025-09-09 08:03:03] DEBUG estrazione: sorgente='Assembraggio PUPA_BANCO 120 ILLUMINATO cod. 300S046B_P_C4907' -> estratto='BANCO 120 ILLUMINATO cod. 300S046B'
+[2025-09-09 08:03:03] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\PUPA_BANCO 120 ILLUMINATO cod. 300S046B_P_C4907\MATERIALI' esiste=True
+[2025-09-09 08:03:03] DEBUG codice_commessa_norm='C4907' (raw='C4907')
+[2025-09-09 08:03:03] DEBUG MATERIALI contiene (7 file): DDT_0042T_C4907_08-09-2025.pdf, DDT_0043T_C4907_08-09-2025.pdf, DDT_0092W_C4907_09-09-2025.pdf, DISTINTA com. 4907 A.xlsx, DISTINTA com. 4907 B.xlsx, DISTINTA com. 4907 C.xlsx, DistintaMateriali_PUPA_BANCO 120 ILLUMINATO cod. 300S046B_P_C4907.xlsx
+[2025-09-09 08:03:03] DEBUG match regex ENTRATA: DDT_0092W_C4907_09-09-2025.pdf
+[2025-09-09 08:03:03] DEBUG MATERIALI contiene (7 file): DDT_0042T_C4907_08-09-2025.pdf, DDT_0043T_C4907_08-09-2025.pdf, DDT_0092W_C4907_09-09-2025.pdf, DISTINTA com. 4907 A.xlsx, DISTINTA com. 4907 B.xlsx, DISTINTA com. 4907 C.xlsx, DistintaMateriali_PUPA_BANCO 120 ILLUMINATO cod. 300S046B_P_C4907.xlsx
+[2025-09-09 08:03:03] DEBUG match regex USCITA: DDT_0043T_C4907_08-09-2025.pdf
+[2025-09-09 08:03:03] DEBUG dedupe: sovrascrivo riga esistente 16 per DDT 0092W
+[2025-09-09 08:03:03] DEBUG prezzoVendita ricevuto='535' -> usato=535.0
+[2025-09-09 08:03:03] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 16) | NomeCommessa='BANCO 120 ILLUMINATO cod. 300S046B' | Codice='C4907' | PrezzoVendita=535.0 | PDF_IN='DDT_0092W_C4907_09-09-2025.pdf'
