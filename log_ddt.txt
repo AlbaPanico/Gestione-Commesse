@@ -136,3 +136,36 @@ reportDdtPath']
 [2025-09-09 08:03:03] DEBUG dedupe: sovrascrivo riga esistente 16 per DDT 0092W
 [2025-09-09 08:03:03] DEBUG prezzoVendita ricevuto='535' -> usato=535.0
 [2025-09-09 08:03:03] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 16) | NomeCommessa='BANCO 120 ILLUMINATO cod. 300S046B' | Codice='C4907' | PrezzoVendita=535.0 | PDF_IN='DDT_0092W_C4907_09-09-2025.pdf'
+[2025-09-09 16:45:41] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita']
+[2025-09-09 16:45:41] DEBUG nomeCommessa='KORFF_piano in plex_P_C4925' descrizione='Assembraggio KORFF_piano in plex_P_C4925'
+[2025-09-09 16:45:41] DEBUG estrazione: sorgente='Assembraggio KORFF_piano in plex_P_C4925' -> estratto='piano in plex'
+[2025-09-09 16:45:41] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\KORFF_piano in plex_P_C4925\MATERIALI' esiste=True
+[2025-09-09 16:45:41] DEBUG codice_commessa_norm='C4925' (raw='C4925')
+[2025-09-09 16:45:41] DEBUG MATERIALI contiene (2 file): DDT_0093W_C4925_09-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-09 16:45:41] DEBUG match regex ENTRATA: DDT_0093W_C4925_09-09-2025.pdf
+[2025-09-09 16:45:41] DEBUG MATERIALI contiene (2 file): DDT_0093W_C4925_09-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-09 16:45:41] DEBUG dedupe: nessuna riga esistente, scrivo in nuova riga 17
+[2025-09-09 16:45:41] DEBUG prezzoVendita ricevuto='0' -> usato=0.0
+[2025-09-09 16:45:41] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 17) | NomeCommessa='piano in plex' | Codice='C4925' | PrezzoVendita=0.0 | PDF_IN='DDT_0093W_C4925_09-09-2025.pdf'
+[2025-09-09 16:45:42] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita', 'reportDdtPath']
+[2025-09-09 16:45:42] DEBUG nomeCommessa='KORFF_piano in plex_P_C4925' descrizione='Assembraggio KORFF_piano in plex_P_C4925'
+[2025-09-09 16:45:42] DEBUG estrazione: sorgente='Assembraggio KORFF_piano in plex_P_C4925' -> estratto='piano in plex'
+[2025-09-09 16:45:42] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\KORFF_piano in plex_P_C4925\MATERIALI' esiste=True
+[2025-09-09 16:45:42] DEBUG codice_commessa_norm='C4925' (raw='C4925')
+[2025-09-09 16:45:42] DEBUG MATERIALI contiene (2 file): DDT_0093W_C4925_09-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-09 16:45:42] DEBUG match regex ENTRATA: DDT_0093W_C4925_09-09-2025.pdf
+[2025-09-09 16:45:42] DEBUG MATERIALI contiene (2 file): DDT_0093W_C4925_09-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-09 16:45:42] DEBUG dedupe: sovrascrivo riga esistente 17 per DDT 0093W
+[2025-09-09 16:45:42] DEBUG prezzoVendita ricevuto='0' -> usato=0.0
+[2025-09-09 16:45:42] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 17) | NomeCommessa='piano in plex' | Codice='C4925' | PrezzoVendita=0.0 | PDF_IN='DDT_0093W_C4925_09-09-2025.pdf'
+[2025-09-09 16:45:42] DEBUG DATI keys=['codiceCommessa', 'quantita', 'folderPath', 'colli', 'oreLavorazione', 'nomeCommessa', 'prezzoVendita', 'descrizione']
+[2025-09-09 16:45:42] DEBUG nomeCommessa='KORFF_piano in plex_P_C4925' descrizione='Assembraggio KORFF_piano in plex_P_C4925'
+[2025-09-09 16:45:42] DEBUG estrazione: sorgente='Assembraggio KORFF_piano in plex_P_C4925' -> estratto='piano in plex'
+[2025-09-09 16:45:42] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\KORFF_piano in plex_P_C4925\MATERIALI' esiste=True
+[2025-09-09 16:45:42] DEBUG codice_commessa_norm='C4925' (raw='C4925')
+[2025-09-09 16:45:42] DEBUG MATERIALI contiene (2 file): DDT_0093W_C4925_09-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-09 16:45:42] DEBUG match regex ENTRATA: DDT_0093W_C4925_09-09-2025.pdf
+[2025-09-09 16:45:42] DEBUG MATERIALI contiene (2 file): DDT_0093W_C4925_09-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-09 16:45:42] DEBUG dedupe: sovrascrivo riga esistente 17 per DDT 0093W
+[2025-09-09 16:45:42] DEBUG prezzoVendita ricevuto='' -> usato=0.0
+[2025-09-09 16:45:42] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 17) | NomeCommessa='piano in plex' | Codice='C4925' | PrezzoVendita=0.0 | PDF_IN='DDT_0093W_C4925_09-09-2025.pdf'
