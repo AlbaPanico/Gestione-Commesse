@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import NewSlideProtek from "./NewSlideProtek";
 
-/** Fetch robusto: gestisce anche risposte non JSON */
+/* ----------------- fetch robusto ----------------- */
 async function safeFetchJson(input, init) {
   const res = await fetch(input, init);
   const ct = (res.headers.get("content-type") || "").toLowerCase();
@@ -14,17 +14,11 @@ async function safeFetchJson(input, init) {
       const t = (text || "").trim();
       if (t.startsWith("{") || t.startsWith("[")) data = JSON.parse(t);
     }
-  } catch {
-    try {
-      text = await res.text();
-      const t = (text || "").trim();
-      if (t.startsWith("{") || t.startsWith("[")) data = JSON.parse(t);
-    } catch {}
-  }
+  } catch {}
   return { ok: res.ok, status: res.status, data, text };
 }
 
-/** Utilità formattazione */
+/* ----------------- util formattazione ----------------- */
 function fmtDate(ts) {
   if (!ts) return "—";
   const d = new Date(ts);
@@ -48,8 +42,18 @@ function fmtDuration(start, end) {
   return `${hh}h ${mm}m`;
 }
 
+/* ----------------- helpers di normalizzazione ----------------- */
+const first = (...vals) => vals.find(v => v !== undefined && v !== null && v !== "") ?? "";
+const toISO = (d, t) => {
+  // accetta date "YYYY-MM-DD" / "DD/MM/YYYY" ed orari "HH:mm[:ss]"
+  if (!d) return null;
+  try {
+    if (t) return new Date(`${d} ${t}`).toISOString();
+    return new Date(d).toISOString();
+  } catch { return null; }
+};
+
 export default function ProtekPage({ onBack, server }) {
-  // stessa base URL di NewSlideProtek
   const API_BASE = (server || import.meta?.env?.VITE_API_BASE || "http://192.168.1.250:3001").replace(/\/+$/,"");
   const api = (p) => `${API_BASE}${p.startsWith("/") ? p : `/${p}`}`;
 
@@ -62,64 +66,94 @@ export default function ProtekPage({ onBack, server }) {
   const [meta, setMeta] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // normalizzazioni
+  /* ----- normalizza da /programs ----- */
   const normalizeFromPrograms = (list = []) =>
     list.map((p, i) => ({
       id: p.id ?? `${p.code || "row"}-${i}`,
-      code: p.code || "",
-      description: p.description || "",
-      customer: p.customer || "",
-      latestState: p.latestState || "",
-      startTime: p.startTime || null,
-      endTime: p.endTime || null,
-      numWorkings: p.numWorkings ?? 0,
+      code: first(p.code, p.programCode, p.ProgramCode, p.name, p.Program),
+      description: first(p.description, p.descrizione, p.programDescription, p.note, p.title),
+      customer: first(p.customer, p.customerName, p.client, p.cliente),
+      latestState: first(p.latestState, p.state, p.status, p.Stato, p.Status),
+      startTime: first(
+        p.startTime,
+        toISO(p.startDate, p.startTime),
+        p.startedAt,
+        p.start_date
+      ) || null,
+      endTime: first(
+        p.endTime,
+        toISO(p.endDate, p.endTime),
+        p.completedAt,
+        p.readyDate
+      ) || null,
+      numWorkings: p.numWorkings ?? p.workings ?? 0,
     }));
 
+  /* ----- normalizza da /jobs (molto tollerante) ----- */
   const normalizeFromJobs = (list = []) =>
-    list.map((j, i) => ({
-      id: j.id ?? `${j.code || "job"}-${i}`,
-      code: j.code || "",
-      description: j.description || "",
-      customer: j.customer || "",
-      latestState: j.latestState || "",
-      // i CSV dei JOBS non hanno orari/working: lascio vuoto
-      startTime: null,
-      endTime: null,
-      // qualcosa di utile in colonna: numero ordini o pezzi da nesting
-      numWorkings:
-        (typeof j?.totals?.piecesFromNestings === "number" && j.totals.piecesFromNestings) ||
-        (Array.isArray(j?.orders) ? j.orders.length : 0),
-    }));
+    list.map((j, i) => {
+      const r = j.job && typeof j.job === "object" ? j.job : j; // dati annidati?
+      const code = first(
+        j.code, r?.code, r?.jobCode, r?.JobCode, r?.programCode, r?.ProgramCode, r?.name
+      );
+      const description = first(
+        j.description, r?.description, r?.jobDescription, r?.desc, r?.title, r?.note
+      );
+      const customer = first(
+        j.customer, r?.customer, r?.customerName, r?.client, r?.cliente, r?.customer?.name
+      );
+      const latestState = first(
+        j.latestState, r?.latestState, j.state, r?.state, j.status, r?.status, r?.Stato, r?.Status
+      );
 
+      // I CSV "jobs" in genere non hanno orari — provo comunque a derivare se presenti
+      const startTime = first(
+        j.startTime, r?.startTime, toISO(r?.startDate, r?.startTime), r?.startedAt
+      ) || null;
+      const endTime = first(
+        j.endTime, r?.endTime, toISO(r?.endDate, r?.endTime), r?.completedAt, r?.readyDate
+      ) || null;
+
+      const numWorkings = first(
+        j.numWorkings, r?.numWorkings,
+        j?.totals?.piecesFromNestings,
+        j?.totals?.qtyOrdered,
+        Array.isArray(j?.orders) ? j.orders.length : undefined
+      );
+      return {
+        id: j.id ?? r?.id ?? `${code || "job"}-${i}`,
+        code, description, customer, latestState,
+        startTime, endTime,
+        numWorkings: typeof numWorkings === "number" ? numWorkings : 0,
+      };
+    });
+
+  /* ----------------- load ----------------- */
   const load = async () => {
     try {
       setLoading(true);
       setError("");
 
-      // 1) prova /programs
-      let data = null;
-      let metaObj = null;
       let rowsNorm = [];
+      let metaObj = null;
 
+      // prova /programs
       const r1 = await safeFetchJson(api("/api/protek/programs"));
       if (r1.ok && Array.isArray(r1.data?.programs)) {
-        const arr = r1.data.programs;
-        rowsNorm = normalizeFromPrograms(arr);
+        rowsNorm = normalizeFromPrograms(r1.data.programs);
         metaObj = r1.data.meta || r1.data.__meta || null;
       }
 
-      // 2) fallback /jobs se /programs assente o vuoto
+      // fallback /jobs se /programs vuoto/assente
       if (!rowsNorm.length) {
         const r2 = await safeFetchJson(api("/api/protek/jobs"));
         if (!r2.ok) {
           const msg =
             r2.data?.error ||
-            (r2.status === 404
-              ? "Endpoint non trovato. Verifica il backend."
-              : `HTTP ${r2.status}`);
+            (r2.status === 404 ? "Endpoint non trovato." : `HTTP ${r2.status}`);
           throw new Error(msg);
         }
-        data = r2.data || {};
+        const data = r2.data || {};
         rowsNorm = normalizeFromJobs(Array.isArray(data.jobs) ? data.jobs : []);
         metaObj = data.meta || data.__meta || null;
       }
@@ -129,9 +163,7 @@ export default function ProtekPage({ onBack, server }) {
       setRefreshedAt(new Date().toISOString());
     } catch (e) {
       setRows([]);
-      // se arriva un 404 dal proxy, evita messaggio fuorviante
-      const msg = String(e?.message || e);
-      setError(msg);
+      setError(String(e?.message || e));
       setMeta(null);
     } finally {
       setLoading(false);
@@ -146,27 +178,25 @@ export default function ProtekPage({ onBack, server }) {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return rows.filter((r) => {
-      const passesSearch =
+      const passQ =
         !q ||
         (r.code || "").toLowerCase().includes(q) ||
         (r.description || "").toLowerCase().includes(q) ||
         (r.customer || "").toLowerCase().includes(q);
-
-      const passesState =
+      const passState =
         stateFilter === "ALL" ||
         (r.latestState || "").toLowerCase() === stateFilter.toLowerCase();
-
-      return passesSearch && passesState;
+      return passQ && passState;
     });
   }, [rows, search, stateFilter]);
 
   return (
     <div className="w-full h-full flex flex-col gap-3 p-4">
-      {/* HEADER + TOOLBAR (come Stampanti) */}
+      {/* HEADER */}
       <div className="flex items-center justify-between">
         <div className="text-xl font-semibold">Protek – Monitor Lavorazioni</div>
         <div className="flex items-center gap-2">
-          {/* HOME come in Stampanti: chiama onBack */}
+          {/* HOME come Stampanti */}
           <button
             className="p-2 rounded-xl shadow hover:shadow-md"
             title="Torna allo Splash"
@@ -202,16 +232,13 @@ export default function ProtekPage({ onBack, server }) {
         </div>
       </div>
 
-      {/* BARRA INFO + FILTRI */}
+      {/* INFO + FILTRI */}
       <div className="text-xs text-gray-500 flex items-center gap-3 flex-wrap">
         <div>
           Path monitorato:{" "}
           <span className="font-mono">{meta?.monitorPath || "—"}</span>
         </div>
-        <div>
-          • aggiornato:{" "}
-          {refreshedAt ? new Date(refreshedAt).toLocaleString("it-IT") : "—"}
-        </div>
+        <div>• aggiornato: {refreshedAt ? new Date(refreshedAt).toLocaleString("it-IT") : "—"}</div>
         <div className="ml-auto flex items-center gap-2">
           <input
             className="border rounded-lg px-2 py-1 text-sm"
@@ -235,7 +262,7 @@ export default function ProtekPage({ onBack, server }) {
         </div>
       </div>
 
-      {/* MESSAGGI STATO */}
+      {/* ERROR */}
       {error && (
         <div className="p-2 rounded bg-red-100 text-red-700 text-sm">
           {error}
@@ -260,40 +287,32 @@ export default function ProtekPage({ onBack, server }) {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={8} className="p-6 text-center text-gray-400">
-                  Caricamento…
-                </td>
+                <td colSpan={8} className="p-6 text-center text-gray-400">Caricamento…</td>
               </tr>
             )}
             {!loading && !error && filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="p-6 text-center text-gray-400">
-                  Nessun dato da mostrare
-                </td>
+                <td colSpan={8} className="p-6 text-center text-gray-400">Nessun dato da mostrare</td>
               </tr>
             )}
-            {!loading &&
-              !error &&
-              filtered.map((r) => (
-                <tr key={r.id} className="border-t hover:bg-gray-50">
-                  <td className="p-2 font-mono">{r.code || "—"}</td>
-                  <td className="p-2">{r.description || "—"}</td>
-                  <td className="p-2">{r.customer || "—"}</td>
-                  <td className="p-2">{r.latestState || "—"}</td>
-                  <td className="p-2">{fmtDate(r.startTime)}</td>
-                  <td className="p-2">{fmtDate(r.endTime)}</td>
-                  <td className="p-2">{fmtDuration(r.startTime, r.endTime)}</td>
-                  <td className="p-2">{r.numWorkings ?? 0}</td>
-                </tr>
-              ))}
+            {!loading && !error && filtered.map((r) => (
+              <tr key={r.id} className="border-t hover:bg-gray-50">
+                <td className="p-2 font-mono">{r.code || "—"}</td>
+                <td className="p-2">{r.description || "—"}</td>
+                <td className="p-2">{r.customer || "—"}</td>
+                <td className="p-2">{r.latestState || "—"}</td>
+                <td className="p-2">{fmtDate(r.startTime)}</td>
+                <td className="p-2">{fmtDate(r.endTime)}</td>
+                <td className="p-2">{fmtDuration(r.startTime, r.endTime)}</td>
+                <td className="p-2">{r.numWorkings ?? 0}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
 
       {/* FOOTER */}
-      <div className="text-xs text-gray-500">
-        Totale righe: <b>{rows?.length ?? 0}</b>
-      </div>
+      <div className="text-xs text-gray-500">Totale righe: <b>{rows?.length ?? 0}</b></div>
 
       {/* SLIDE-OVER IMPOSTAZIONI */}
       {settingsOpen && (
