@@ -92,31 +92,60 @@ export default function ProtekPage() {
     <div className="w-full h-full flex flex-col gap-3 p-4">
       {/* HEADER + TOOLBAR (come Stampanti) */}
       <div className="flex items-center justify-between">
-        <div className="text-xl font-semibold">Protek – Monitor Lavorazioni</div>
-        <div className="flex items-center gap-2">
-          <button
-            className="px-3 py-1 rounded-xl shadow text-sm hover:shadow-md flex items-center gap-2"
-            title="Impostazioni Protek"
-            onClick={() => setSettingsOpen(true)}
-          >
-            {/* icona ingranaggio inline per coerenza con layout */}
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4"
-              viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3"></circle>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.04 3.4l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c0 .66.39 1.26 1 1.51.16.07.33.11.51.11H21a2 2 0 1 1 0 4h-.09c-.18 0-.35.04-.51.11-.61.25-1 .85-1 1.51z"></path>
-            </svg>
-            Impostazioni
-          </button>
-          <button
-            className="px-3 py-1 rounded-xl shadow text-sm hover:shadow-md"
-            onClick={load}
-            title="Aggiorna"
-          >
-            Aggiorna
-          </button>
-        </div>
-      </div>
+  <div className="text-xl font-semibold">Protek – Monitor Lavorazioni</div>
+  <div className="flex items-center gap-2">
+    {/* NUOVO: bottone Home a sinistra */}
+    <button
+      className="p-2 rounded-xl shadow hover:shadow-md"
+      title="Torna alla Home / Splash"
+      aria-label="Home"
+      onClick={() => {
+        try { window.dispatchEvent(new CustomEvent("app:navigate", { detail: { to: "splash" } })); } catch {}
+        try {
+          if (typeof window.__goToSplash === "function") {
+            window.__goToSplash();
+            return;
+          }
+        } catch {}
+        try { window.location.assign("/"); } catch {}
+      }}
+    >
+      {/* icona casa */}
+      <svg xmlns="http://www.w3.org/2000/svg"
+        className="w-5 h-5" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" strokeWidth="1.5"
+        strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 10.5L12 3l9 7.5" />
+        <path d="M5.5 9.5V20a1.5 1.5 0 0 0 1.5 1.5h10A1.5 1.5 0 0 0 18.5 20V9.5" />
+        <path d="M9 21v-6h6v6" />
+      </svg>
+    </button>
+
+    {/* Impostazioni */}
+    <button
+      className="px-3 py-1 rounded-xl shadow text-sm hover:shadow-md flex items-center gap-2"
+      title="Impostazioni Protek"
+      onClick={() => setSettingsOpen(true)}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4"
+        viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.04 3.4l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c0 .66.39 1.26 1 1.51.16.07.33.11.51.11H21a2 2 0 1 1 0 4h-.09c-.18 0-.35.04-.51.11-.61.25-1 .85-1 1.51z"></path>
+      </svg>
+      Impostazioni
+    </button>
+
+    <button
+      className="px-3 py-1 rounded-xl shadow text-sm hover:shadow-md"
+      onClick={load}
+      title="Aggiorna"
+    >
+      Aggiorna
+    </button>
+  </div>
+</div>
+
 
       {/* BARRA INFO + FILTRI (come Stampanti) */}
       <div className="text-xs text-gray-500 flex items-center gap-3 flex-wrap">
