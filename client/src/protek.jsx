@@ -176,19 +176,23 @@ export default function ProtekPage({ onBack, server }) {
   }, []);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return rows.filter((r) => {
-      const passQ =
-        !q ||
-        (r.code || "").toLowerCase().includes(q) ||
-        (r.description || "").toLowerCase().includes(q) ||
-        (r.customer || "").toLowerCase().includes(q);
-      const passState =
-        stateFilter === "ALL" ||
-        (r.latestState || "").toLowerCase() === stateFilter.toLowerCase();
-      return passQ && passState;
-    });
-  }, [rows, search, stateFilter]);
+  const q = search.trim().toLowerCase();
+  return rows.filter((r) => {
+    const hay = [
+      r.code, r.description, r.customer,
+      r.operators, r.machines,
+      String(r.ordersCount), String(r.qtyOrdered), String(r.piecesFromNestings),
+    ].join(" | ").toLowerCase();
+
+    const passesSearch = !q || hay.includes(q);
+    const passesState =
+      stateFilter === "ALL" ||
+      (r.latestState || "").toLowerCase() === stateFilter.toLowerCase();
+
+    return passesSearch && passesState;
+  });
+}, [rows, search, stateFilter]);
+
 
   return (
     <div className="w-full h-full flex flex-col gap-3 p-4">
@@ -273,18 +277,65 @@ export default function ProtekPage({ onBack, server }) {
       <div className="flex-1 overflow-auto rounded-2xl border">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-gray-50">
-            <tr className="text-left">
-              <th className="p-2">Program Code</th>
-              <th className="p-2">Descrizione</th>
-              <th className="p-2">Cliente</th>
-              <th className="p-2">Stato</th>
-              <th className="p-2">Inizio</th>
-              <th className="p-2">Fine</th>
-              <th className="p-2">Durata</th>
-              <th className="p-2"># Lavorazioni</th>
-            </tr>
-          </thead>
-          <tbody>
+  <tr className="text-left">
+    <th className="p-2">Program Code</th>
+    <th className="p-2">Descrizione</th>
+    <th className="p-2">Cliente</th>
+    <th className="p-2">Operatori</th>
+    <th className="p-2">Macchine</th>
+    <th className="p-2">Stato</th>
+    <th className="p-2">Inizio</th>
+    <th className="p-2">Fine</th>
+    <th className="p-2">Durata</th>
+    <th className="p-2">Tempo Macchina</th>
+    <th className="p-2"># Lavorazioni</th>
+    <th className="p-2"># Ordini</th>
+    <th className="p-2">Q.ty Ordinate</th>
+    <th className="p-2">Pezzi (Nesting)</th>
+    <th className="p-2">Allarmi</th>
+  </tr>
+</thead>
+<tbody>
+  {loading && (
+    <tr>
+      <td colSpan={15} className="p-6 text-center text-gray-400">
+        Caricamento…
+      </td>
+    </tr>
+  )}
+  {!loading && !error && filtered.length === 0 && (
+    <tr>
+      <td colSpan={15} className="p-6 text-center text-gray-400">
+        Nessun dato da mostrare
+      </td>
+    </tr>
+  )}
+  {!loading &&
+    !error &&
+    filtered.map((r) => (
+      <tr key={r.id} className="border-t hover:bg-gray-50">
+        <td className="p-2 font-mono">{r.code || "—"}</td>
+        <td className="p-2">{r.description || "—"}</td>
+        <td className="p-2">{r.customer || "—"}</td>
+        <td className="p-2">{r.operators || "—"}</td>
+        <td className="p-2">{r.machines || "—"}</td>
+        <td className="p-2">{r.latestState || "—"}</td>
+        <td className="p-2">{fmtDate(r.startTime)}</td>
+        <td className="p-2">{fmtDate(r.endTime)}</td>
+        <td className="p-2">{fmtDuration(r.startTime, r.endTime)}</td>
+        <td className="p-2">
+          {/* mostro sec oppure hh:mm:ss se preferisci cambiare la formattazione */}
+          {Number.isFinite(r.machineSeconds) ? Math.round(r.machineSeconds) : 0}
+        </td>
+        <td className="p-2">{r.numWorkings ?? 0}</td>
+        <td className="p-2">{r.ordersCount ?? 0}</td>
+        <td className="p-2">{r.qtyOrdered ?? 0}</td>
+        <td className="p-2">{r.piecesFromNestings ?? 0}</td>
+        <td className="p-2">{r.alarmsCount ?? 0}</td>
+      </tr>
+    ))}
+</tbody>
+
             {loading && (
               <tr>
                 <td colSpan={8} className="p-6 text-center text-gray-400">Caricamento…</td>
