@@ -2,12 +2,33 @@
 import React, { useEffect, useMemo, useState } from "react";
 import NewSlideProtek from "./NewSlideProtek";
 
+/** Fetch robusto: gestisce anche risposte non JSON */
+async function safeFetchJson(input, init) {
+  const res = await fetch(input, init);
+  const ct = (res.headers.get("content-type") || "").toLowerCase();
+  let data, text;
+  try {
+    if (ct.includes("application/json")) data = await res.json();
+    else {
+      text = await res.text();
+      const t = (text || "").trim();
+      if (t.startsWith("{") || t.startsWith("[")) data = JSON.parse(t);
+    }
+  } catch {
+    try {
+      text = await res.text();
+      const t = (text || "").trim();
+      if (t.startsWith("{") || t.startsWith("[")) data = JSON.parse(t);
+    } catch {}
+  }
+  return { ok: res.ok, status: res.status, data, text };
+}
+
 /** Utilità formattazione */
 function fmtDate(ts) {
   if (!ts) return "—";
   const d = new Date(ts);
   if (Number.isNaN(d.getTime())) return "—";
-  // dd/MM/yyyy HH:mm
   return d.toLocaleString("it-IT", {
     day: "2-digit",
     month: "2-digit",
@@ -16,20 +37,22 @@ function fmtDate(ts) {
     minute: "2-digit",
   });
 }
-
 function fmtDuration(start, end) {
   if (!start || !end) return "—";
   const a = new Date(start).getTime();
   const b = new Date(end).getTime();
   if (Number.isNaN(a) || Number.isNaN(b) || b < a) return "—";
-  const ms = b - a;
-  const mins = Math.floor(ms / 60000);
+  const mins = Math.floor((b - a) / 60000);
   const hh = Math.floor(mins / 60);
   const mm = mins % 60;
   return `${hh}h ${mm}m`;
 }
 
-export default function ProtekPage({ onBack }) {
+export default function ProtekPage({ onBack, server }) {
+  // stessa base URL di NewSlideProtek
+  const API_BASE = (server || import.meta?.env?.VITE_API_BASE || "http://192.168.1.250:3001").replace(/\/+$/,"");
+  const api = (p) => `${API_BASE}${p.startsWith("/") ? p : `/${p}`}`;
+
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -37,31 +60,78 @@ export default function ProtekPage({ onBack }) {
   const [stateFilter, setStateFilter] = useState("ALL");
   const [refreshedAt, setRefreshedAt] = useState("");
   const [meta, setMeta] = useState(null);
-
-  // slide impostazioni come in Stampanti (ingranaggio)
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // normalizzazioni
+  const normalizeFromPrograms = (list = []) =>
+    list.map((p, i) => ({
+      id: p.id ?? `${p.code || "row"}-${i}`,
+      code: p.code || "",
+      description: p.description || "",
+      customer: p.customer || "",
+      latestState: p.latestState || "",
+      startTime: p.startTime || null,
+      endTime: p.endTime || null,
+      numWorkings: p.numWorkings ?? 0,
+    }));
+
+  const normalizeFromJobs = (list = []) =>
+    list.map((j, i) => ({
+      id: j.id ?? `${j.code || "job"}-${i}`,
+      code: j.code || "",
+      description: j.description || "",
+      customer: j.customer || "",
+      latestState: j.latestState || "",
+      // i CSV dei JOBS non hanno orari/working: lascio vuoto
+      startTime: null,
+      endTime: null,
+      // qualcosa di utile in colonna: numero ordini o pezzi da nesting
+      numWorkings:
+        (typeof j?.totals?.piecesFromNestings === "number" && j.totals.piecesFromNestings) ||
+        (Array.isArray(j?.orders) ? j.orders.length : 0),
+    }));
 
   const load = async () => {
     try {
       setLoading(true);
       setError("");
-      const res = await fetch("/api/protek/programs");
-      if (!res.ok) {
-        // se 404 è quasi sempre monitorPath non configurato
-        const msg =
-          res.status === 404
-            ? "Percorso CSV Protek non configurato o non raggiungibile."
-            : `HTTP ${res.status}`;
-        throw new Error(msg);
+
+      // 1) prova /programs
+      let data = null;
+      let metaObj = null;
+      let rowsNorm = [];
+
+      const r1 = await safeFetchJson(api("/api/protek/programs"));
+      if (r1.ok && Array.isArray(r1.data?.programs)) {
+        const arr = r1.data.programs;
+        rowsNorm = normalizeFromPrograms(arr);
+        metaObj = r1.data.meta || r1.data.__meta || null;
       }
-      const j = await res.json();
-      const programs = Array.isArray(j?.programs) ? j.programs : [];
-      setRows(programs);
+
+      // 2) fallback /jobs se /programs assente o vuoto
+      if (!rowsNorm.length) {
+        const r2 = await safeFetchJson(api("/api/protek/jobs"));
+        if (!r2.ok) {
+          const msg =
+            r2.data?.error ||
+            (r2.status === 404
+              ? "Endpoint non trovato. Verifica il backend."
+              : `HTTP ${r2.status}`);
+          throw new Error(msg);
+        }
+        data = r2.data || {};
+        rowsNorm = normalizeFromJobs(Array.isArray(data.jobs) ? data.jobs : []);
+        metaObj = data.meta || data.__meta || null;
+      }
+
+      setRows(rowsNorm);
+      setMeta(metaObj);
       setRefreshedAt(new Date().toISOString());
-      setMeta(j.meta || null);
     } catch (e) {
-      setError(String(e?.message || e));
       setRows([]);
+      // se arriva un 404 dal proxy, evita messaggio fuorviante
+      const msg = String(e?.message || e);
+      setError(msg);
       setMeta(null);
     } finally {
       setLoading(false);
@@ -70,6 +140,7 @@ export default function ProtekPage({ onBack }) {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filtered = useMemo(() => {
@@ -95,23 +166,14 @@ export default function ProtekPage({ onBack }) {
       <div className="flex items-center justify-between">
         <div className="text-xl font-semibold">Protek – Monitor Lavorazioni</div>
         <div className="flex items-center gap-2">
-          {/* HOME → identico a Stampanti: chiama onBack */}
+          {/* HOME come in Stampanti: chiama onBack */}
           <button
             className="p-2 rounded-xl shadow hover:shadow-md"
             title="Torna allo Splash"
             aria-label="Home"
             onClick={onBack}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="w-5 h-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 10.5L12 3l9 7.5" />
               <path d="M5.5 9.5V20a1.5 1.5 0 0 0 1.5 1.5h10A1.5 1.5 0 0 0 18.5 20V9.5" />
               <path d="M9 21v-6h6v6" />
@@ -123,16 +185,7 @@ export default function ProtekPage({ onBack }) {
             title="Impostazioni Protek"
             onClick={() => setSettingsOpen(true)}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="w-4 h-4"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3"></circle>
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.04 3.4l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c0 .66.39 1.26 1 1.51.16.07.33.11.51.11H21a2 2 0 1 1 0 4h-.09c-.18 0-.35.04-.51.11-.61.25-1 .85-1 1.51z"></path>
             </svg>
@@ -149,7 +202,7 @@ export default function ProtekPage({ onBack }) {
         </div>
       </div>
 
-      {/* BARRA INFO + FILTRI (come Stampanti) */}
+      {/* BARRA INFO + FILTRI */}
       <div className="text-xs text-gray-500 flex items-center gap-3 flex-wrap">
         <div>
           Path monitorato:{" "}
@@ -182,22 +235,14 @@ export default function ProtekPage({ onBack }) {
         </div>
       </div>
 
-      {/* MESSAGGI STATO (coerenti) */}
+      {/* MESSAGGI STATO */}
       {error && (
         <div className="p-2 rounded bg-red-100 text-red-700 text-sm">
-          {error}{" "}
-          {String(error).toLowerCase().includes("percorso csv") && (
-            <>
-              —{" "}
-              <button className="underline" onClick={() => setSettingsOpen(true)}>
-                Configura ora
-              </button>
-            </>
-          )}
+          {error}
         </div>
       )}
 
-      {/* TABELLA (stesso look & feel di Stampanti) */}
+      {/* TABELLA */}
       <div className="flex-1 overflow-auto rounded-2xl border">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-gray-50">
@@ -245,7 +290,7 @@ export default function ProtekPage({ onBack }) {
         </table>
       </div>
 
-      {/* FOOTER (come Stampanti) */}
+      {/* FOOTER */}
       <div className="text-xs text-gray-500">
         Totale righe: <b>{rows?.length ?? 0}</b>
       </div>
@@ -268,6 +313,7 @@ export default function ProtekPage({ onBack }) {
             </div>
             <div className="h-[calc(100%-48px)] overflow-auto">
               <NewSlideProtek
+                server={API_BASE}
                 onSaved={() => load()}
                 onClose={() => {
                   setSettingsOpen(false);
