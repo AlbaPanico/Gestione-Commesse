@@ -94,20 +94,22 @@ export default function ProtekPage() {
       <div className="flex items-center justify-between">
   <div className="text-xl font-semibold">Protek – Monitor Lavorazioni</div>
   <div className="flex items-center gap-2">
-    {/* NUOVO: bottone Home a sinistra */}
+    {/* HOME → SplashScreen (non login) */}
     <button
       className="p-2 rounded-xl shadow hover:shadow-md"
-      title="Torna alla Home / Splash"
+      title="Torna alla SplashScreen"
       aria-label="Home"
       onClick={() => {
+        // 1) evento app-wide verso Splash
         try { window.dispatchEvent(new CustomEvent("app:navigate", { detail: { to: "splash" } })); } catch {}
-        try {
-          if (typeof window.__goToSplash === "function") {
-            window.__goToSplash();
-            return;
-          }
-        } catch {}
-        try { window.location.assign("/"); } catch {}
+        // 2) hook globale opzionale, se definito da chi gestisce SplashScreen
+        try { if (typeof window.__showSplashScreen === "function") { window.__showSplashScreen(); return; } } catch {}
+        // 3) SPA route preferita
+        try { window.history.pushState({}, "", "/splash"); window.dispatchEvent(new PopStateEvent("popstate")); return; } catch {}
+        // 4) fallback hash route
+        try { window.location.hash = "#/splash"; return; } catch {}
+        // 5) ultimissimo fallback hard (solo se necessario)
+        try { window.location.assign("/splash"); } catch {}
       }}
     >
       {/* icona casa */}
@@ -145,6 +147,7 @@ export default function ProtekPage() {
     </button>
   </div>
 </div>
+
 
 
       {/* BARRA INFO + FILTRI (come Stampanti) */}
