@@ -1933,134 +1933,213 @@ app.get('/api/protek/jobs', (req, res) => {
   res.json({ jobs: out, meta: { monitorPath, generatedAt: new Date().toISOString() } });
 });
 
-// === PROTEK: riepilogo PROGRAMMI (adattato ai tuoi CSV) ========================
+
+// === PROTEK: riepilogo PROGRAMMI arricchito (operatori, macchine, ordini, pezzi, allarmi, tempi) ===
 app.get('/api/protek/programs', (req, res) => {
   const { monitorPath } = readProtekSettings();
   if (!monitorPath || !fs.existsSync(monitorPath)) {
     return res.status(404).json({ error: 'Percorso di monitoraggio Protek non impostato o non esistente.' });
   }
 
-  // CSV realmente presenti/strutturati come nei file che mi hai inviato
-  const PART_PROGRAMS         = loadCSVFrom(monitorPath, 'PART_PROGRAMS.csv');          // ID, NAME, PATH, DATE_CREATED, LAST_UPDATED, ...
-  const PART_SUB_PROGRAMS     = loadCSVFrom(monitorPath, 'PART_SUB_PROGRAMS.csv');      // PART_PROGRAM_ID, NESTING_ID, ...
-  const PART_PROGRAM_WORKINGS = loadCSVFrom(monitorPath, 'PART_PROGRAM_WORKINGS.csv');  // PART_PROGRAM_ID, TIME, DATE_CREATED, LAST_UPDATED, ...
-  const NESTINGS_ORDERS       = loadCSVFrom(monitorPath, 'NESTINGS_ORDERS.csv');        // NESTING_ID, JOB_ORDER_ID, PIECES, ...
-  const JOB_ORDERS            = loadCSVFrom(monitorPath, 'JOB_ORDERS.csv');             // ID, JOB_ID, QTY, ...
-  const JOBS                  = loadCSVFrom(monitorPath, 'JOBS.csv');                   // ID, CUSTOMER_ID, ...
-  const CUSTOMERS             = loadCSVFrom(monitorPath, 'CUSTOMERS.csv');              // ID, NAME, ...
+  // CSV necessari
+  const PART_PROGRAMS               = loadCSVFrom(monitorPath, 'PART_PROGRAMS.csv');
+  const PART_PROGRAM_WORKINGS       = loadCSVFrom(monitorPath, 'PART_PROGRAM_WORKINGS.csv');
+  const PART_PROGRAM_WORKING_LINES  = loadCSVFrom(monitorPath, 'PART_PROGRAM_WORKING_LINES.csv');
+  const USERS                       = loadCSVFrom(monitorPath, 'USERS.csv');
+  const WORK_CONFIGURATIONS         = loadCSVFrom(monitorPath, 'WORK_CONFIGURATIONS.csv');
+  const JOB_ORDERS                  = loadCSVFrom(monitorPath, 'JOB_ORDERS.csv');
+  const JOBS                        = loadCSVFrom(monitorPath, 'JOBS.csv');
+  const CUSTOMERS                   = loadCSVFrom(monitorPath, 'CUSTOMERS.csv');
+  const NESTINGS_ORDERS             = loadCSVFrom(monitorPath, 'NESTINGS_ORDERS.csv');
+  const ALARMS                      = loadCSVFrom(monitorPath, 'ALARMS.csv');
 
-  // Helpers ---------------------------------------------------------------------
-  const toNum = (v) => (v === undefined || v === null || v === '' || isNaN(Number(v))) ? 0 : Number(v);
-
-  // parse "YYYY-MM-DD HH:mm:ss[.ffff]" -> Date, con fallback sostituendo spazio con 'T'
+  // Util
+  const toNum = (v) => {
+    if (v === undefined || v === null || v === '') return 0;
+    const s = String(v).replace(',', '.');
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  };
   const parseTs = (v) => {
     if (!v) return null;
-    const s = String(v).trim();
-    const iso = s.includes('T') ? s : s.replace(' ', 'T');
-    const d = new Date(iso);
-    return isNaN(d.getTime()) ? null : d;
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+  const truthy = (v) => {
+    if (typeof v === 'boolean') return v;
+    const s = String(v).trim().toLowerCase();
+    return s === '1' || s === 'true' || s === 'yes' || s === 'y' || s === 't';
   };
 
-  const baseName = (p) => {
-    try {
-      const raw = String(p || '').trim();
-      if (!raw) return '';
-      // Estrai il nome file senza estensione (se PATH è un path Windows)
-      const only = raw.split(/[\\/]/).pop();
-      return String(only || '').replace(/\.[^.]+$/, '');
-    } catch { return ''; }
-  };
+  // Mappe di supporto
+  const userNameById = new Map(USERS.map(u => [String(u.ID), (u.USERNAME || u.NAME || u.LOGIN || '').trim()]));
+  const cfgNameById  = new Map(WORK_CONFIGURATIONS.map(c => [String(c.ID), (c.NAME || c.CODE || '').trim()]));
+  const jobById      = new Map(JOBS.map(j => [String(j.ID), j]));
+  const custNameById = new Map(CUSTOMERS.map(c => [String(c.ID || c.CUSTOMER_ID || c.Code), (c.NAME || c.DESCRIPTION || c.CODE || '').trim()]));
 
-  // Indici per join -------------------------------------------------------------
-  const jobOrderById   = new Map(JOB_ORDERS.map(o => [String(o.ID), o]));
-  const jobById        = new Map(JOBS.map(j => [String(j.ID), j]));
-  const customerById   = new Map(CUSTOMERS.map(c => [String(c.ID), c]));
+  const orderById    = new Map(JOB_ORDERS.map(o => [String(o.ID), o]));
+  const jobIdByOrder = new Map(JOB_ORDERS.map(o => [String(o.ID), String(o.JOB_ID)]));
 
-  const subProgsByProg = new Map();
-  for (const sp of PART_SUB_PROGRAMS) {
-    const pid = String(sp.PART_PROGRAM_ID || sp.part_program_id || '');
-    if (!pid) continue;
-    if (!subProgsByProg.has(pid)) subProgsByProg.set(pid, []);
-    subProgsByProg.get(pid).push(sp);
-  }
-
-  const nestOrdersByNesting = new Map();
+  // Nesting: pezzi per ordine
+  const piecesByOrderId = new Map();
   for (const no of NESTINGS_ORDERS) {
-    const nid = String(no.NESTING_ID || no.nesting_id || '');
-    if (!nid) continue;
-    if (!nestOrdersByNesting.has(nid)) nestOrdersByNesting.set(nid, []);
-    nestOrdersByNesting.get(nid).push(no);
+    const oid = String(no.JOB_ORDER_ID);
+    const pieces = toNum(no.PIECES || no.PIECE_COUNT || no.PIECE || no.PZ);
+    piecesByOrderId.set(oid, (piecesByOrderId.get(oid) || 0) + pieces);
   }
 
-  const workingsByProg = new Map();
+  // Lines: tempo macchina per WORKING
+  const machineSecondsByWorkingId = new Map();
+  for (const line of PART_PROGRAM_WORKING_LINES) {
+    const wid = String(line.PART_PROGRAM_WORKING_ID || line.PROGRAM_WORKING_ID || line.WORKING_ID || line.ID_WORKING || '');
+    if (!wid) continue;
+    const sec = toNum(line.TIME || line.MACHINE_TIME || line.DURATION || 0);
+    machineSecondsByWorkingId.set(wid, (machineSecondsByWorkingId.get(wid) || 0) + sec);
+  }
+
+  // Allarmi per WORKING
+  const alarmsByWorkingId = new Map();
+  for (const a of ALARMS) {
+    const wid = String(a.PROGRAM_WORKING_ID || a.WORKING_ID || a.PART_PROGRAM_WORKING_ID || '');
+    if (!wid) continue;
+    alarmsByWorkingId.set(wid, (alarmsByWorkingId.get(wid) || 0) + 1);
+  }
+
+  // Raggruppo workings per programma
+  const workingsByProgram = new Map();
   for (const w of PART_PROGRAM_WORKINGS) {
-    const pid = String(w.PART_PROGRAM_ID || w.part_program_id || '');
-    if (!pid) continue;
-    if (!workingsByProg.has(pid)) workingsByProg.set(pid, []);
-    workingsByProg.get(pid).push(w);
+    const pid = String(w.PART_PROGRAM_ID);
+    if (!workingsByProgram.has(pid)) workingsByProgram.set(pid, []);
+    workingsByProgram.get(pid).push(w);
   }
 
-  // Calcolo stato "euristico" (LIFECYCLE non ha STATE nei tuoi CSV)
-  const nowMs = Date.now();
-  const RUNNING_WINDOW_MS = 30 * 60 * 1000; // 30 minuti
+  // Costruisco output
+  const programs = PART_PROGRAMS.map(pp => {
+    const pid   = String(pp.ID);
+    const code  = pp.CODE || '';
+    const desc  = pp.DESCRIPTION || pp.NAME || '';
+    const path  = pp.PATH || '';
 
-  function inferState(startTs, endTs, lastUpdateTs, totalTimeSec) {
-    if (endTs && totalTimeSec > 0) return 'FINISHED';
-    if (startTs && lastUpdateTs && (nowMs - lastUpdateTs.getTime()) < RUNNING_WINDOW_MS) return 'RUNNING';
-    if (startTs) return 'STARTED';
-    return '';
-  }
+    const workings = workingsByProgram.get(pid) || [];
+    const numWorkings = workings.length;
 
-  // Output ----------------------------------------------------------------------
-  const programs = PART_PROGRAMS.map(p => {
-    const id   = String(p.ID);
-    const name = p.NAME || '';               // lo mostriamo come "Program Code"
-    const path = p.PATH || '';               // usato per una descrizione di fallback
+    // operatori/macchine
+    const operatorIds = new Set();
+    const cfgIds      = new Set();
+    const orderIds    = new Set();
 
-    // Working aggregati
-    const wks = workingsByProg.get(id) || [];
-    let totalTime = 0;
-    let firstTs = parseTs(p.DATE_CREATED || p.date_created) || null; // fallback: creazione programma
-    let lastTs  = parseTs(p.LAST_UPDATED || p.last_updated) || null;
+    let minStart = null, maxEnd = null;
+    let anyEnded = false, anyCompleted = false, anyStarted = false, anyLoaded = false;
 
-    for (const w of wks) {
-      totalTime += toNum(w.TIME);
-      const c = parseTs(w.DATE_CREATED || w.date_created);
-      const u = parseTs(w.LAST_UPDATED || w.last_updated);
-      if (c && (!firstTs || c < firstTs)) firstTs = c;
-      if (u && (!lastTs  || u > lastTs))  lastTs  = u;
-    }
+    // aggregazioni per workings
+    let machineSeconds = 0;
+    let alarmsCount = 0;
 
-    // Cliente (join: PART_SUB_PROGRAMS → NESTINGS_ORDERS → JOB_ORDERS → JOBS → CUSTOMERS)
-    let customerName = '';
-    const subs = subProgsByProg.get(id) || [];
-    for (const sp of subs) {
-      const nid = String(sp.NESTING_ID || sp.nesting_id || '');
-      if (!nid) continue;
-      const orders = nestOrdersByNesting.get(nid) || [];
-      for (const no of orders) {
-        const jo = jobOrderById.get(String(no.JOB_ORDER_ID));
-        if (!jo) continue;
-        const job = jobById.get(String(jo.JOB_ID));
-        if (!job) continue;
-        const cust = customerById.get(String(job.CUSTOMER_ID));
-        if (cust && cust.NAME) { customerName = cust.NAME; break; }
+    for (const w of workings) {
+      if (w.USER_ID) operatorIds.add(String(w.USER_ID));
+      if (w.WORK_CONFIGURATION_ID) cfgIds.add(String(w.WORK_CONFIGURATION_ID));
+      if (w.JOB_ORDER_ID) orderIds.add(String(w.JOB_ORDER_ID));
+
+      const dLoaded    = parseTs(w.DATE_LOADED || w.LOADED_DATE);
+      const dStarted   = parseTs(w.DATE_STARTED || w.START_DATE);
+      const dCompleted = parseTs(w.DATE_COMPLETED || w.END_DATE || w.COMPLETED_DATE);
+      const dLast      = parseTs(w.LAST_DATE);
+
+      if (dLoaded)   anyLoaded = true;
+      if (truthy(w.STARTED) || dStarted)   anyStarted = true;
+      if (truthy(w.COMPLETED) || dCompleted) anyCompleted = true;
+      if (truthy(w.ENDED)) anyEnded = true;
+
+      if (dStarted) {
+        if (!minStart || dStarted < minStart) minStart = dStarted;
+      } else if (dLoaded) {
+        if (!minStart || dLoaded < minStart) minStart = dLoaded;
       }
-      if (customerName) break;
+
+      const endCand = dCompleted || dLast || null;
+      if (endCand) {
+        if (!maxEnd || endCand > maxEnd) maxEnd = endCand;
+      }
+
+      const wid = String(w.ID || w.PART_PROGRAM_WORKING_ID || '');
+      if (wid) {
+        machineSeconds += machineSecondsByWorkingId.get(wid) || 0;
+        alarmsCount    += alarmsByWorkingId.get(wid) || 0;
+      }
     }
 
-    // Stato euristico
-    const latestState = inferState(firstTs, lastTs, lastTs, totalTime);
+    // stato “derivato”
+    let latestState = '';
+    if (anyEnded) latestState = 'ENDED';
+    else if (anyCompleted) latestState = 'FINISHED';
+    else if (anyStarted) latestState = 'RUNNING';
+    else if (anyLoaded) latestState = 'QUEUED';
+    else latestState = '';
+
+    // cliente: via primo ordine -> job -> customer
+    let customer = '';
+    const firstOrderId = orderIds.values().next().value;
+    if (firstOrderId) {
+      const jobId = jobIdByOrder.get(String(firstOrderId));
+      const job   = jobId ? jobById.get(String(jobId)) : null;
+      if (job) {
+        // prova sia stringa “CUSTOMER” sia CUSTOMERS.ID
+        customer = (job.CUSTOMER || '').trim();
+        if (!customer && (job.CUSTOMER_ID || job.CUSTOMERCODE || job.CUSTOMER_CODE)) {
+          const cid = String(job.CUSTOMER_ID || job.CUSTOMERCODE || job.CUSTOMER_CODE);
+          customer = custNameById.get(cid) || '';
+        }
+      }
+    }
+
+    // qty ordinate + pezzi nesting su tutti gli ordini collegati
+    let ordersCount = orderIds.size;
+    let qtyOrdered  = 0;
+    let piecesFromNestings = 0;
+    for (const oid of orderIds) {
+      const o = orderById.get(String(oid));
+      if (o) qtyOrdered += toNum(o.QTY);
+      piecesFromNestings += toNum(piecesByOrderId.get(String(oid)));
+    }
+
+    const creationDate = parseTs(pp.CREATION_DATE || pp.creation_date);
+    const startTime = (minStart || creationDate) ? (minStart || creationDate).toISOString() : '';
+    const endTime   = maxEnd ? maxEnd.toISOString() : '';
+
+    // durata “visuale” come fallback se non abbiamo machineSeconds
+    let durationSeconds = 0;
+    if (machineSeconds > 0) {
+      durationSeconds = Math.floor(machineSeconds);
+    } else if (minStart && maxEnd) {
+      durationSeconds = Math.max(0, Math.floor((maxEnd - minStart) / 1000));
+    }
+
+    const operators = [...operatorIds].map(id => userNameById.get(id) || id).filter(Boolean).join(', ');
+    const machines  = [...cfgIds].map(id => cfgNameById.get(id) || id).filter(Boolean).join(', ');
 
     return {
-      id,
-      code: name || baseName(path),                 // Program Code
-      description: baseName(path) || name || '',   // fallback sensato
-      customer: customerName || '',
+      id: pid,
+      code,
+      description: desc,
+      path,
+
+      customer,
       latestState,
-      startTime: firstTs ? firstTs.toISOString() : '',
-      endTime:   lastTs  ? lastTs.toISOString()  : '',
-      numWorkings: wks.length
+
+      startTime,
+      endTime,
+      durationSeconds,      // sec
+      machineSeconds,       // sec (da working_lines se presente)
+
+      numWorkings,
+      operators,
+      machines,
+
+      ordersCount,
+      qtyOrdered,
+      piecesFromNestings,
+
+      alarmsCount
     };
   });
 
