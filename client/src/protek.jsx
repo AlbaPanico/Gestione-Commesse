@@ -276,34 +276,46 @@ export default function ProtekPage({ onBack, server }) {
       {/* TABELLA */}
       <div className="flex-1 overflow-auto rounded-2xl border">
   <table className="w-full text-sm">
-    {/* ...tutto il thead/tbody/chiusure... */}
+    <thead className="sticky top-0 bg-gray-50">
+      <tr className="text-left">
+        <th className="p-2">Program Code</th>
+        <th className="p-2">Descrizione</th>
+        <th className="p-2">Cliente</th>
+        <th className="p-2">Stato</th>
+        <th className="p-2">Inizio</th>
+        <th className="p-2">Fine</th>
+        <th className="p-2">Durata</th>
+        <th className="p-2"># Lavorazioni</th>
+      </tr>
+    </thead>
 
+    <tbody>
+      {loading ? (
+        <tr>
+          <td colSpan={8} className="p-6 text-center text-gray-400">Caricamento…</td>
+        </tr>
+      ) : !error && filtered.length === 0 ? (
+        <tr>
+          <td colSpan={8} className="p-6 text-center text-gray-400">Nessun dato da mostrare</td>
+        </tr>
+      ) : (
+        filtered.map((r) => (
+          <tr key={r.id} className="border-t hover:bg-gray-50">
+            <td className="p-2 font-mono">{r.code || "—"}</td>
+            <td className="p-2">{r.description || "—"}</td>
+            <td className="p-2">{r.customer || "—"}</td>
+            <td className="p-2">{r.latestState || "—"}</td>
+            <td className="p-2">{fmtDate(r.startTime)}</td>
+            <td className="p-2">{fmtDate(r.endTime)}</td>
+            <td className="p-2">{fmtDuration(r.startTime, r.endTime)}</td>
+            <td className="p-2">{r.numWorkings ?? 0}</td>
+          </tr>
+        ))
+      )}
+    </tbody>
+  </table>
+</div>
 
-            {loading && (
-              <tr>
-                <td colSpan={8} className="p-6 text-center text-gray-400">Caricamento…</td>
-              </tr>
-            )}
-            {!loading && !error && filtered.length === 0 && (
-              <tr>
-                <td colSpan={8} className="p-6 text-center text-gray-400">Nessun dato da mostrare</td>
-              </tr>
-            )}
-            {!loading && !error && filtered.map((r) => (
-              <tr key={r.id} className="border-t hover:bg-gray-50">
-                <td className="p-2 font-mono">{r.code || "—"}</td>
-                <td className="p-2">{r.description || "—"}</td>
-                <td className="p-2">{r.customer || "—"}</td>
-                <td className="p-2">{r.latestState || "—"}</td>
-                <td className="p-2">{fmtDate(r.startTime)}</td>
-                <td className="p-2">{fmtDate(r.endTime)}</td>
-                <td className="p-2">{fmtDuration(r.startTime, r.endTime)}</td>
-                <td className="p-2">{r.numWorkings ?? 0}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
 
       {/* FOOTER */}
       <div className="text-xs text-gray-500">Totale righe: <b>{rows?.length ?? 0}</b></div>
