@@ -94,34 +94,34 @@ export default function ProtekPage() {
       <div className="flex items-center justify-between">
   <div className="text-xl font-semibold">Protek – Monitor Lavorazioni</div>
   <div className="flex items-center gap-2">
-    {/* HOME → SplashScreen (non login) */}
-    <button
-      className="p-2 rounded-xl shadow hover:shadow-md"
-      title="Torna alla SplashScreen"
-      aria-label="Home"
-      onClick={() => {
-        // 1) evento app-wide verso Splash
-        try { window.dispatchEvent(new CustomEvent("app:navigate", { detail: { to: "splash" } })); } catch {}
-        // 2) hook globale opzionale, se definito da chi gestisce SplashScreen
-        try { if (typeof window.__showSplashScreen === "function") { window.__showSplashScreen(); return; } } catch {}
-        // 3) SPA route preferita
-        try { window.history.pushState({}, "", "/splash"); window.dispatchEvent(new PopStateEvent("popstate")); return; } catch {}
-        // 4) fallback hash route
-        try { window.location.hash = "#/splash"; return; } catch {}
-        // 5) ultimissimo fallback hard (solo se necessario)
-        try { window.location.assign("/splash"); } catch {}
-      }}
-    >
-      {/* icona casa */}
-      <svg xmlns="http://www.w3.org/2000/svg"
-        className="w-5 h-5" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" strokeWidth="1.5"
-        strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 10.5L12 3l9 7.5" />
-        <path d="M5.5 9.5V20a1.5 1.5 0 0 0 1.5 1.5h10A1.5 1.5 0 0 0 18.5 20V9.5" />
-        <path d="M9 21v-6h6v6" />
-      </svg>
-    </button>
+    {/* HOME → forza redirect alla root (SplashScreen) */}
+<button
+  className="p-2 rounded-xl shadow hover:shadow-md"
+  title="Torna alla SplashScreen"
+  aria-label="Home"
+  onClick={() => {
+    try {
+      // Usa la base dell’app (supporta anche deploy in sottocartelle Vite)
+      const base = (import.meta?.env?.BASE_URL || "/");
+      // Se BASE_URL termina con '/', evitiamo doppi slash
+      const url = base.endsWith("/") ? base : base + "/";
+      window.location.href = url; // redirect “duro” -> SplashScreen
+    } catch {
+      window.location.href = "/"; // fallback
+    }
+  }}
+>
+  {/* icona casa */}
+  <svg xmlns="http://www.w3.org/2000/svg"
+    className="w-5 h-5" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="1.5"
+    strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 10.5L12 3l9 7.5" />
+    <path d="M5.5 9.5V20a1.5 1.5 0 0 0 1.5 1.5h10A1.5 1.5 0 0 0 18.5 20V9.5" />
+    <path d="M9 21v-6h6v6" />
+  </svg>
+</button>
+
 
     {/* Impostazioni */}
     <button
