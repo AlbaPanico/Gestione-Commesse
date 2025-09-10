@@ -202,3 +202,38 @@ reportDdtPath']
 [2025-09-10 10:56:48] DEBUG dedupe: sovrascrivo riga esistente 18 per DDT 0094W
 [2025-09-10 10:56:48] DEBUG prezzoVendita ricevuto='360.00' -> usato=360.0
 [2025-09-10 10:56:48] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 18) | NomeCommessa='pannelli laterali per testate' | Codice='C4982' | PrezzoVendita=360.0 | PDF_IN='DDT_0094W_C4982_10-09-2025.pdf'
+[2025-09-10 10:59:15] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita', 'reportDdtPath']
+[2025-09-10 10:59:15] DEBUG nomeCommessa='BIONIKE_kit gradinata per eventi_P2439_C4983' descrizione='Assembraggio BIONIKE_kit gradinata per eventi_P2439_C4983'
+[2025-09-10 10:59:15] DEBUG estrazione: sorgente='Assembraggio BIONIKE_kit gradinata per eventi_P2439_C4983' -> estratto='kit gradinata per eventi'
+[2025-09-10 10:59:15] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\BIONIKE_kit gradinata per eventi_P2439_C4983\MATERIALI' esiste=True
+[2025-09-10 10:59:15] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita']
+[2025-09-10 10:59:15] DEBUG nomeCommessa='BIONIKE_kit gradinata per eventi_P2439_C4983' descrizione='Assembraggio BIONIKE_kit gradinata per eventi_P2439_C4983'
+[2025-09-10 10:59:15] DEBUG estrazione: sorgente='Assembraggio BIONIKE_kit gradinata per eventi_P2439_C4983' -> estratto='kit gradinata per eventi'
+[2025-09-10 10:59:15] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\BIONIKE_kit gradinata per eventi_P2439_C4983\MATERIALI' esiste=True
+[2025-09-10 10:59:15] DEBUG codice_commessa_norm='C4983' (raw='C4983')
+[2025-09-10 10:59:15] DEBUG MATERIALI contiene (4 file): DDT_0040T_C4983_05-09-2025.pdf, DDT_0095W_C4983_10-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_BIONIKE_kit gradinata per eventi_P2439_C4983.xlsx
+[2025-09-10 10:59:15] DEBUG match regex ENTRATA: DDT_0095W_C4983_10-09-2025.pdf
+[2025-09-10 10:59:15] DEBUG MATERIALI contiene (4 file): DDT_0040T_C4983_05-09-2025.pdf, DDT_0095W_C4983_10-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_BIONIKE_kit gradinata per eventi_P2439_C4983.xlsx
+[2025-09-10 10:59:15] DEBUG MATERIALI contiene (4 file): DDT_0040T_C4983_05-09-2025.pdf, DDT_0095W_C4983_10-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_BIONIKE_kit gradinata per eventi_P2439_C4983.xlsx
+[2025-09-10 10:59:15] DEBUG match regex ENTRATA: DDT_0095W_C4983_10-09-2025.pdf
+[2025-09-10 10:59:15] DEBUG match regex USCITA: DDT_0040T_C4983_05-09-2025.pdf
+[2025-09-10 10:59:15] DEBUG MATERIALI contiene (4 file): DDT_0040T_C4983_05-09-2025.pdf, DDT_0095W_C4983_10-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_BIONIKE_kit gradinata per eventi_P2439_C4983.xlsx
+[2025-09-10 10:59:15] DEBUG match regex USCITA: DDT_0040T_C4983_05-09-2025.pdf
+[2025-09-10 10:59:15] DEBUG dedupe: nessuna riga esistente, scrivo in nuova riga 19
+[2025-09-10 10:59:15] DEBUG dedupe: nessuna riga esistente, scrivo in nuova riga 19
+[2025-09-10 10:59:15] DEBUG prezzoVendita ricevuto='60' -> usato=60.0
+[2025-09-10 10:59:15] DEBUG prezzoVendita ricevuto='60' -> usato=60.0
+[2025-09-10 10:59:15] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 19) | NomeCommessa='kit gradinata per eventi' | Codice='C4983' | PrezzoVendita=60.0 | PDF_IN='DDT_0095W_C4983_10-09-2025.pdf'
+[2025-09-10 10:59:15] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 19) | NomeCommessa='kit gradinata per eventi' | Codice='C4983' | PrezzoVendita=60.0 | PDF_IN='DDT_0095W_C4983_10-09-2025.pdf'
+[2025-09-10 10:59:15] DEBUG DATI keys=['codiceCommessa', 'quantita', 'folderPath', 'colli', 'oreLavorazione', 'nomeCommessa', 'prezzoVendita', 'descrizione']
+[2025-09-10 10:59:15] DEBUG nomeCommessa='BIONIKE_kit gradinata per eventi_P2439_C4983' descrizione='Assembraggio BIONIKE_kit gradinata per eventi_P2439_C4983'
+[2025-09-10 10:59:15] DEBUG estrazione: sorgente='Assembraggio BIONIKE_kit gradinata per eventi_P2439_C4983' -> estratto='kit gradinata per eventi'
+[2025-09-10 10:59:15] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\BIONIKE_kit gradinata per eventi_P2439_C4983\MATERIALI' esiste=True
+[2025-09-10 10:59:15] DEBUG codice_commessa_norm='C4983' (raw='C4983')
+[2025-09-10 10:59:15] DEBUG MATERIALI contiene (4 file): DDT_0040T_C4983_05-09-2025.pdf, DDT_0095W_C4983_10-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_BIONIKE_kit gradinata per eventi_P2439_C4983.xlsx
+[2025-09-10 10:59:15] DEBUG match regex ENTRATA: DDT_0095W_C4983_10-09-2025.pdf
+[2025-09-10 10:59:15] DEBUG MATERIALI contiene (4 file): DDT_0040T_C4983_05-09-2025.pdf, DDT_0095W_C4983_10-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_BIONIKE_kit gradinata per eventi_P2439_C4983.xlsx
+[2025-09-10 10:59:15] DEBUG match regex USCITA: DDT_0040T_C4983_05-09-2025.pdf
+[2025-09-10 10:59:15] DEBUG dedupe: sovrascrivo riga esistente 19 per DDT 0095W
+[2025-09-10 10:59:15] DEBUG prezzoVendita ricevuto='60.00' -> usato=60.0
+[2025-09-10 10:59:15] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 19) | NomeCommessa='kit gradinata per eventi' | Codice='C4983' | PrezzoVendita=60.0 | PDF_IN='DDT_0095W_C4983_10-09-2025.pdf'
