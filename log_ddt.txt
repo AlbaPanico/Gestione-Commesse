@@ -169,3 +169,36 @@ reportDdtPath']
 [2025-09-09 16:45:42] DEBUG dedupe: sovrascrivo riga esistente 17 per DDT 0093W
 [2025-09-09 16:45:42] DEBUG prezzoVendita ricevuto='' -> usato=0.0
 [2025-09-09 16:45:42] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 17) | NomeCommessa='piano in plex' | Codice='C4925' | PrezzoVendita=0.0 | PDF_IN='DDT_0093W_C4925_09-09-2025.pdf'
+[2025-09-10 10:56:47] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita']
+[2025-09-10 10:56:47] DEBUG nomeCommessa='COOP_pannelli laterali per testate_P_C4982' descrizione='Assembraggio COOP_pannelli laterali per testate_P_C4982'
+[2025-09-10 10:56:47] DEBUG estrazione: sorgente='Assembraggio COOP_pannelli laterali per testate_P_C4982' -> estratto='pannelli laterali per testate'
+[2025-09-10 10:56:47] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\COOP_pannelli laterali per testate_P_C4982\MATERIALI' esiste=True
+[2025-09-10 10:56:47] DEBUG codice_commessa_norm='C4982' (raw='C4982')
+[2025-09-10 10:56:47] DEBUG MATERIALI contiene (3 file): DDT_0094W_C4982_10-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_COOP_pannelli laterali per testate_P_C4982.xlsx
+[2025-09-10 10:56:47] DEBUG match regex ENTRATA: DDT_0094W_C4982_10-09-2025.pdf
+[2025-09-10 10:56:47] DEBUG MATERIALI contiene (3 file): DDT_0094W_C4982_10-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_COOP_pannelli laterali per testate_P_C4982.xlsx
+[2025-09-10 10:56:47] DEBUG dedupe: nessuna riga esistente, scrivo in nuova riga 18
+[2025-09-10 10:56:47] DEBUG prezzoVendita ricevuto='360' -> usato=360.0
+[2025-09-10 10:56:47] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 18) | NomeCommessa='pannelli laterali per testate' | Codice='C4982' | PrezzoVendita=360.0 | PDF_IN='DDT_0094W_C4982_10-09-2025.pdf'
+[2025-09-10 10:56:48] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita', 'reportDdtPath']
+[2025-09-10 10:56:48] DEBUG nomeCommessa='COOP_pannelli laterali per testate_P_C4982' descrizione='Assembraggio COOP_pannelli laterali per testate_P_C4982'
+[2025-09-10 10:56:48] DEBUG estrazione: sorgente='Assembraggio COOP_pannelli laterali per testate_P_C4982' -> estratto='pannelli laterali per testate'
+[2025-09-10 10:56:48] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\COOP_pannelli laterali per testate_P_C4982\MATERIALI' esiste=True
+[2025-09-10 10:56:48] DEBUG codice_commessa_norm='C4982' (raw='C4982')
+[2025-09-10 10:56:48] DEBUG MATERIALI contiene (3 file): DDT_0094W_C4982_10-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_COOP_pannelli laterali per testate_P_C4982.xlsx
+[2025-09-10 10:56:48] DEBUG match regex ENTRATA: DDT_0094W_C4982_10-09-2025.pdf
+[2025-09-10 10:56:48] DEBUG MATERIALI contiene (3 file): DDT_0094W_C4982_10-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_COOP_pannelli laterali per testate_P_C4982.xlsx
+[2025-09-10 10:56:48] DEBUG dedupe: sovrascrivo riga esistente 18 per DDT 0094W
+[2025-09-10 10:56:48] DEBUG prezzoVendita ricevuto='360' -> usato=360.0
+[2025-09-10 10:56:48] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 18) | NomeCommessa='pannelli laterali per testate' | Codice='C4982' | PrezzoVendita=360.0 | PDF_IN='DDT_0094W_C4982_10-09-2025.pdf'
+[2025-09-10 10:56:48] DEBUG DATI keys=['codiceCommessa', 'quantita', 'folderPath', 'colli', 'oreLavorazione', 'nomeCommessa', 'prezzoVendita', 'descrizione']
+[2025-09-10 10:56:48] DEBUG nomeCommessa='COOP_pannelli laterali per testate_P_C4982' descrizione='Assembraggio COOP_pannelli laterali per testate_P_C4982'
+[2025-09-10 10:56:48] DEBUG estrazione: sorgente='Assembraggio COOP_pannelli laterali per testate_P_C4982' -> estratto='pannelli laterali per testate'
+[2025-09-10 10:56:48] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\COOP_pannelli laterali per testate_P_C4982\MATERIALI' esiste=True
+[2025-09-10 10:56:48] DEBUG codice_commessa_norm='C4982' (raw='C4982')
+[2025-09-10 10:56:48] DEBUG MATERIALI contiene (3 file): DDT_0094W_C4982_10-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_COOP_pannelli laterali per testate_P_C4982.xlsx
+[2025-09-10 10:56:48] DEBUG match regex ENTRATA: DDT_0094W_C4982_10-09-2025.pdf
+[2025-09-10 10:56:48] DEBUG MATERIALI contiene (3 file): DDT_0094W_C4982_10-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_COOP_pannelli laterali per testate_P_C4982.xlsx
+[2025-09-10 10:56:48] DEBUG dedupe: sovrascrivo riga esistente 18 per DDT 0094W
+[2025-09-10 10:56:48] DEBUG prezzoVendita ricevuto='360.00' -> usato=360.0
+[2025-09-10 10:56:48] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 18) | NomeCommessa='pannelli laterali per testate' | Codice='C4982' | PrezzoVendita=360.0 | PDF_IN='DDT_0094W_C4982_10-09-2025.pdf'
