@@ -173,11 +173,29 @@ app.post('/api/ping', (req, res) => {
 app.post('/api/open-folder-local', (req, res) => {
   const { folderPath } = req.body;
   if (!folderPath) return res.status(400).json({ message: 'Percorso mancante' });
+
+  // 🟨 nuovi parametri facoltativi per indirizzare il terminale
+  const { target, targets, broadcast } = req.body;
+
   const cmdFile = 'C:\\Users\\Applicazioni\\Gestione Commesse\\data\\apptimepass_cmd.json';
+  const tmpFile = cmdFile + '.tmp';
+
   try {
-    fs.writeFileSync(cmdFile, JSON.stringify({ action: 'open_folder', folder: folderPath }, null, 2));
-    res.json({ message: 'Comando scritto, la cartella si aprirà a breve!' });
+    // 🟨 payload con target/targets e broadcast
+    const payload = {
+      action: 'open_folder',
+      folder: folderPath,
+      ...(target ? { target } : {}),
+      ...(Array.isArray(targets) ? { targets } : {}),
+      ...(broadcast !== undefined ? { broadcast: !!broadcast } : {})
+    };
+
+    fs.writeFileSync(tmpFile, JSON.stringify(payload, null, 2), 'utf8');
+    fs.renameSync(tmpFile, cmdFile);
+
+    res.json({ message: 'Comando scritto, la cartella si aprirà sul terminale target.', payload });
   } catch (err) {
+    try { if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile); } catch {}
     res.status(500).json({ message: 'Errore scrivendo il file comando.', error: err.toString() });
   }
 });
