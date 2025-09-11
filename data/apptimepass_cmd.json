@@ -1,5 +1,1 @@
-﻿{
-    "target":  "NB-SIMONE",
-    "folder":  "C:\\Users\\Simone\\Desktop",
-    "action":  "open_folder"
-}
+{"target":"NB-SIMONE","folder":"C:\\Users\\Simone\\Desktop","action":"open_folder"}
