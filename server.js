@@ -171,17 +171,17 @@ app.post('/api/ping', (req, res) => {
 // Utility locali
 // ───────────────────────────────────────────────────────────────────────────────
 app.post('/api/open-folder-local', (req, res) => {
-  const { folderPath } = req.body;
+  const { folderPath, target, targets, broadcast } = req.body;
   if (!folderPath) return res.status(400).json({ message: 'Percorso mancante' });
 
-  // 🟨 nuovi parametri facoltativi per indirizzare il terminale
-  const { target, targets, broadcast } = req.body;
-
-  const cmdFile = 'C:\\Users\\Applicazioni\\Gestione Commesse\\data\\apptimepass_cmd.json';
+  // Usa la stessa share che legge ApptimepassV2
+  const cmdDir  = '\\\\192.168.1.250\\users\\applicazioni\\gestione commesse\\data';
+  const cmdFile = path.join(cmdDir, 'apptimepass_cmd.json');
   const tmpFile = cmdFile + '.tmp';
 
   try {
-    // 🟨 payload con target/targets e broadcast
+    if (!fs.existsSync(cmdDir)) fs.mkdirSync(cmdDir, { recursive: true });
+
     const payload = {
       action: 'open_folder',
       folder: folderPath,
@@ -190,13 +190,14 @@ app.post('/api/open-folder-local', (req, res) => {
       ...(broadcast !== undefined ? { broadcast: !!broadcast } : {})
     };
 
-    fs.writeFileSync(tmpFile, JSON.stringify(payload, null, 2), 'utf8');
+    // scrittura senza BOM + atomica
+    fs.writeFileSync(tmpFile, JSON.stringify(payload), 'utf8');
     fs.renameSync(tmpFile, cmdFile);
 
-    res.json({ message: 'Comando scritto, la cartella si aprirà sul terminale target.', payload });
+    return res.json({ message: 'Comando scritto.', payload });
   } catch (err) {
     try { if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile); } catch {}
-    res.status(500).json({ message: 'Errore scrivendo il file comando.', error: err.toString() });
+    return res.status(500).json({ message: 'Errore scrivendo il file comando.', error: String(err) });
   }
 });
 
