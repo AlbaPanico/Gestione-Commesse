@@ -24,6 +24,49 @@ const PYTHON_PATH = 'python'; // o 'python3'
 const MATERIALI_SCRIPT = 'C:\\Users\\Applicazioni\\Gestione Commesse\\FinestraMateriali.py';
 
 // ───────────────────────────────────────────────────────────────────────────────
+// Target automatico: mappa IP chiamante -> PC (da presence files degli agent)
+// ───────────────────────────────────────────────────────────────────────────────
+const AGENTS_DIR = '\\\\192.168.1.250\\users\\applicazioni\\gestione commesse\\data\\agents';
+
+function getClientIp(req) {
+  let ip = (req.headers['x-forwarded-for'] || req.connection?.remoteAddress || req.socket?.remoteAddress || '').toString();
+  ip = ip.split(',')[0].trim();
+  if (ip.startsWith('::ffff:')) ip = ip.substring(7);
+  if (ip === '::1') ip = '127.0.0.1';
+  return ip;
+}
+
+function readJsonSafe(fp) {
+  try {
+    if (fs.existsSync(fp)) return JSON.parse(fs.readFileSync(fp, 'utf8') || '{}');
+  } catch {}
+  return {};
+}
+
+function pickPcFromPresenceByIp(ip) {
+  try {
+    if (!fs.existsSync(AGENTS_DIR)) return null;
+    const files = fs.readdirSync(AGENTS_DIR).filter(f => f.toLowerCase().endsWith('.json'));
+    let best = null; // { pcname, ip, last_seen_ts }
+    for (const f of files) {
+      const obj = readJsonSafe(path.join(AGENTS_DIR, f));
+      const pc  = (obj.pcname || '').toString().trim();
+      const pip = (obj.ip || '').toString().trim();
+      const ls  = Date.parse(obj.last_seen || '') || 0;
+      if (!pc || !pip) continue;
+      if (pip !== ip) continue;
+      const fresh = (Date.now() - ls) <= 60_000; // “vivo” negli ultimi 60s
+      if (!fresh) continue;
+      if (!best || ls > best.last_seen_ts) best = { pcname: pc, ip: pip, last_seen_ts: ls };
+    }
+    return best ? best.pcname : null;
+  } catch {
+    return null;
+  }
+}
+
+
+// ───────────────────────────────────────────────────────────────────────────────
 // Bootstrap
 // ───────────────────────────────────────────────────────────────────────────────
 console.log('Controllo backend materiali Flask...');
