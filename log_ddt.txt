@@ -237,3 +237,36 @@ reportDdtPath']
 [2025-09-10 10:59:15] DEBUG dedupe: sovrascrivo riga esistente 19 per DDT 0095W
 [2025-09-10 10:59:15] DEBUG prezzoVendita ricevuto='60.00' -> usato=60.0
 [2025-09-10 10:59:15] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 19) | NomeCommessa='kit gradinata per eventi' | Codice='C4983' | PrezzoVendita=60.0 | PDF_IN='DDT_0095W_C4983_10-09-2025.pdf'
+[2025-09-12 10:00:37] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita']
+[2025-09-12 10:00:37] DEBUG nomeCommessa='INTERPLAST_ganci elettronici 32 cm_P_C4954' descrizione='Assembraggio INTERPLAST_ganci elettronici 32 cm_P_C4954'
+[2025-09-12 10:00:37] DEBUG estrazione: sorgente='Assembraggio INTERPLAST_ganci elettronici 32 cm_P_C4954' -> estratto='ganci elettronici 32 cm'
+[2025-09-12 10:00:37] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\INTERPLAST_ganci elettronici 32 cm_P_C4954\MATERIALI' esiste=True
+[2025-09-12 10:00:37] DEBUG codice_commessa_norm='C4954' (raw='C4954')
+[2025-09-12 10:00:37] DEBUG MATERIALI contiene (2 file): DDT_0096W_C4954_12-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-12 10:00:37] DEBUG match regex ENTRATA: DDT_0096W_C4954_12-09-2025.pdf
+[2025-09-12 10:00:37] DEBUG MATERIALI contiene (2 file): DDT_0096W_C4954_12-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-12 10:00:38] DEBUG dedupe: nessuna riga esistente, scrivo in nuova riga 20
+[2025-09-12 10:00:38] DEBUG prezzoVendita ricevuto='0.4' -> usato=0.4
+[2025-09-12 10:00:38] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 20) | NomeCommessa='ganci elettronici 32 cm' | Codice='C4954' | PrezzoVendita=0.4 | PDF_IN='DDT_0096W_C4954_12-09-2025.pdf'
+[2025-09-12 10:00:39] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita', 'reportDdtPath']
+[2025-09-12 10:00:39] DEBUG nomeCommessa='INTERPLAST_ganci elettronici 32 cm_P_C4954' descrizione='Assembraggio INTERPLAST_ganci elettronici 32 cm_P_C4954'
+[2025-09-12 10:00:39] DEBUG estrazione: sorgente='Assembraggio INTERPLAST_ganci elettronici 32 cm_P_C4954' -> estratto='ganci elettronici 32 cm'
+[2025-09-12 10:00:39] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\INTERPLAST_ganci elettronici 32 cm_P_C4954\MATERIALI' esiste=True
+[2025-09-12 10:00:39] DEBUG codice_commessa_norm='C4954' (raw='C4954')
+[2025-09-12 10:00:39] DEBUG MATERIALI contiene (2 file): DDT_0096W_C4954_12-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-12 10:00:39] DEBUG match regex ENTRATA: DDT_0096W_C4954_12-09-2025.pdf
+[2025-09-12 10:00:39] DEBUG MATERIALI contiene (2 file): DDT_0096W_C4954_12-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-12 10:00:39] DEBUG dedupe: sovrascrivo riga esistente 20 per DDT 0096W
+[2025-09-12 10:00:39] DEBUG prezzoVendita ricevuto='0.4' -> usato=0.4
+[2025-09-12 10:00:39] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 20) | NomeCommessa='ganci elettronici 32 cm' | Codice='C4954' | PrezzoVendita=0.4 | PDF_IN='DDT_0096W_C4954_12-09-2025.pdf'
+[2025-09-12 10:00:39] DEBUG DATI keys=['codiceCommessa', 'quantita', 'folderPath', 'colli', 'oreLavorazione', 'nomeCommessa', 'prezzoVendita', 'descrizione']
+[2025-09-12 10:00:39] DEBUG nomeCommessa='INTERPLAST_ganci elettronici 32 cm_P_C4954' descrizione='Assembraggio INTERPLAST_ganci elettronici 32 cm_P_C4954'
+[2025-09-12 10:00:39] DEBUG estrazione: sorgente='Assembraggio INTERPLAST_ganci elettronici 32 cm_P_C4954' -> estratto='ganci elettronici 32 cm'
+[2025-09-12 10:00:39] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\INTERPLAST_ganci elettronici 32 cm_P_C4954\MATERIALI' esiste=True
+[2025-09-12 10:00:39] DEBUG codice_commessa_norm='C4954' (raw='C4954')
+[2025-09-12 10:00:39] DEBUG MATERIALI contiene (2 file): DDT_0096W_C4954_12-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-12 10:00:39] DEBUG match regex ENTRATA: DDT_0096W_C4954_12-09-2025.pdf
+[2025-09-12 10:00:39] DEBUG MATERIALI contiene (2 file): DDT_0096W_C4954_12-09-2025.pdf, DISTINTA com..xlsx
+[2025-09-12 10:00:39] DEBUG dedupe: sovrascrivo riga esistente 20 per DDT 0096W
+[2025-09-12 10:00:39] DEBUG prezzoVendita ricevuto='0.4' -> usato=0.4
+[2025-09-12 10:00:39] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 20) | NomeCommessa='ganci elettronici 32 cm' | Codice='C4954' | PrezzoVendita=0.4 | PDF_IN='DDT_0096W_C4954_12-09-2025.pdf'
