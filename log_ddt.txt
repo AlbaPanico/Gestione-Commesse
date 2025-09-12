@@ -270,3 +270,36 @@ reportDdtPath']
 [2025-09-12 10:00:39] DEBUG dedupe: sovrascrivo riga esistente 20 per DDT 0096W
 [2025-09-12 10:00:39] DEBUG prezzoVendita ricevuto='0.4' -> usato=0.4
 [2025-09-12 10:00:39] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 20) | NomeCommessa='ganci elettronici 32 cm' | Codice='C4954' | PrezzoVendita=0.4 | PDF_IN='DDT_0096W_C4954_12-09-2025.pdf'
+[2025-09-12 12:06:47] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita', 'reportDdtPath']
+[2025-09-12 12:06:47] DEBUG nomeCommessa='KIKO_cvt hong kong lips_P2419_C4995' descrizione='Assembraggio KIKO_cvt hong kong lips_P2419_C4995'
+[2025-09-12 12:06:47] DEBUG DATI keys=['dataDdt', 'numeroDdt', 'codiceCommessa', 'quantita', 'colli', 'nsDdt', 'del', 'percorsoPdf', 'folderPath', 'descrizione', 'nomeCommessa', 'prezzoVendita']
+[2025-09-12 12:06:47] DEBUG estrazione: sorgente='Assembraggio KIKO_cvt hong kong lips_P2419_C4995' -> estratto='cvt hong kong lips'
+[2025-09-12 12:06:47] DEBUG nomeCommessa='KIKO_cvt hong kong lips_P2419_C4995' descrizione='Assembraggio KIKO_cvt hong kong lips_P2419_C4995'
+[2025-09-12 12:06:47] DEBUG estrazione: sorgente='Assembraggio KIKO_cvt hong kong lips_P2419_C4995' -> estratto='cvt hong kong lips'
+[2025-09-12 12:06:47] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\KIKO_cvt hong kong lips_P2419_C4995\MATERIALI' esiste=True
+[2025-09-12 12:06:47] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\KIKO_cvt hong kong lips_P2419_C4995\MATERIALI' esiste=True
+[2025-09-12 12:06:47] DEBUG codice_commessa_norm='C4995' (raw='C4995')
+[2025-09-12 12:06:47] DEBUG codice_commessa_norm='C4995' (raw='C4995')
+[2025-09-12 12:06:47] DEBUG MATERIALI contiene (3 file): DDT_0097W_C4995_12-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_KIKO_cvt hong kong lips_P2419_C4995.xlsx
+[2025-09-12 12:06:47] DEBUG MATERIALI contiene (3 file): DDT_0097W_C4995_12-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_KIKO_cvt hong kong lips_P2419_C4995.xlsx
+[2025-09-12 12:06:47] DEBUG match regex ENTRATA: DDT_0097W_C4995_12-09-2025.pdf
+[2025-09-12 12:06:47] DEBUG match regex ENTRATA: DDT_0097W_C4995_12-09-2025.pdf
+[2025-09-12 12:06:47] DEBUG MATERIALI contiene (3 file): DDT_0097W_C4995_12-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_KIKO_cvt hong kong lips_P2419_C4995.xlsx
+[2025-09-12 12:06:47] DEBUG MATERIALI contiene (3 file): DDT_0097W_C4995_12-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_KIKO_cvt hong kong lips_P2419_C4995.xlsx
+[2025-09-12 12:06:47] DEBUG dedupe: nessuna riga esistente, scrivo in nuova riga 21
+[2025-09-12 12:06:47] DEBUG prezzoVendita ricevuto='125' -> usato=125.0
+va riga 21
+[2025-09-12 12:06:47] DEBUG prezzoVendita ricevuto='125' -> usato=125.0
+[2025-09-12 12:06:47] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 21) | NomeCommessa='cvt hong kong lips' | Codice='C4995' | PrezzoVendita=125.0 | PDF_IN='DDT_0097W_C4995_12-09-2025.pdf'
+[2025-09-12 12:06:47] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 21) | NomeCommessa='cvt hong kong lips' | Codice='C4995' | PrezzoVendita=125.0 | PDF_IN='DDT_0097W_C4995_12-09-2025.pdf'
+[2025-09-12 12:06:47] DEBUG DATI keys=['codiceCommessa', 'quantita', 'folderPath', 'colli', 'oreLavorazione', 'nomeCommessa', 'prezzoVendita', 'descrizione']
+[2025-09-12 12:06:47] DEBUG nomeCommessa='KIKO_cvt hong kong lips_P2419_C4995' descrizione='Assembraggio KIKO_cvt hong kong lips_P2419_C4995'
+[2025-09-12 12:06:47] DEBUG estrazione: sorgente='Assembraggio KIKO_cvt hong kong lips_P2419_C4995' -> estratto='cvt hong kong lips'
+[2025-09-12 12:06:47] DEBUG folder_materiali='\\192.168.1.248\time dati\ARCHIVIO TECNICO\ARCHIVIO\2025\COMMESSE\KIKO_cvt hong kong lips_P2419_C4995\MATERIALI' esiste=True
+[2025-09-12 12:06:47] DEBUG codice_commessa_norm='C4995' (raw='C4995')
+[2025-09-12 12:06:47] DEBUG MATERIALI contiene (3 file): DDT_0097W_C4995_12-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_KIKO_cvt hong kong lips_P2419_C4995.xlsx
+[2025-09-12 12:06:47] DEBUG match regex ENTRATA: DDT_0097W_C4995_12-09-2025.pdf
+[2025-09-12 12:06:47] DEBUG MATERIALI contiene (3 file): DDT_0097W_C4995_12-09-2025.pdf, DISTINTA com..xlsx, DistintaMateriali_KIKO_cvt hong kong lips_P2419_C4995.xlsx
+[2025-09-12 12:06:47] DEBUG dedupe: sovrascrivo riga esistente 21 per DDT 0097W
+[2025-09-12 12:06:47] DEBUG prezzoVendita ricevuto='125' -> usato=125.0
+[2025-09-12 12:06:47] OK: scritto su \\192.168.1.248\time dati\ARCHIVIO TECNICO\VARIE\DDT WORK\DDT_Work_09_2025.xlsx (riga 21) | NomeCommessa='cvt hong kong lips' | Codice='C4995' | PrezzoVendita=125.0 | PDF_IN='DDT_0097W_C4995_12-09-2025.pdf'
