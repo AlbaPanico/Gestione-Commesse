@@ -214,10 +214,10 @@ app.post('/api/ping', (req, res) => {
 // Utility locali
 // ───────────────────────────────────────────────────────────────────────────────
 app.post('/api/open-folder-local', (req, res) => {
-  const { folderPath, target, targets, broadcast } = req.body;
+  const { folderPath, target, targets, broadcast } = req.body || {};
   if (!folderPath) return res.status(400).json({ message: 'Percorso mancante' });
 
-  // Usa la stessa share che legge ApptimepassV2
+  // Percorso del file comando (stesso che legge ApptimepassV2)
   const cmdDir  = '\\\\192.168.1.250\\users\\applicazioni\\gestione commesse\\data';
   const cmdFile = path.join(cmdDir, 'apptimepass_cmd.json');
   const tmpFile = cmdFile + '.tmp';
@@ -225,22 +225,36 @@ app.post('/api/open-folder-local', (req, res) => {
   try {
     if (!fs.existsSync(cmdDir)) fs.mkdirSync(cmdDir, { recursive: true });
 
+    // === Auto-target se non specificato esplicitamente ===
+    let finalTarget = target;
+    let finalTargetsArr = Array.isArray(targets) ? targets : undefined;
+    let finalBroadcast = (broadcast === true);
+
+    if (!finalBroadcast && !finalTarget && !finalTargetsArr) {
+      const callerIp = getClientIp(req);
+      const pcname = pickPcFromPresenceByIp(callerIp);
+      if (pcname) finalTarget = pcname; // usa il PC rilevato dall’IP
+    }
+
     const payload = {
       action: 'open_folder',
       folder: folderPath,
-      ...(target ? { target } : {}),
-      ...(Array.isArray(targets) ? { targets } : {}),
-      ...(broadcast !== undefined ? { broadcast: !!broadcast } : {})
+      ...(finalBroadcast ? { broadcast: true } : {}),
+      ...(finalTargetsArr ? { targets: finalTargetsArr } : (finalTarget ? { target: finalTarget } : {})),
     };
 
-    // scrittura senza BOM + atomica
+    // scrittura JSON “pulita” (senza BOM) e atomica
     fs.writeFileSync(tmpFile, JSON.stringify(payload), 'utf8');
     fs.renameSync(tmpFile, cmdFile);
 
-    return res.json({ message: 'Comando scritto.', payload });
+    return res.json({
+      ok: true,
+      message: 'Comando scritto.',
+      debug: { autoTargetUsed: !broadcast && !targets && !target, target: finalTarget, callerIp: getClientIp(req) }
+    });
   } catch (err) {
     try { if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile); } catch {}
-    return res.status(500).json({ message: 'Errore scrivendo il file comando.', error: String(err) });
+    return res.status(500).json({ ok: false, message: 'Errore scrivendo il file comando.', error: String(err) });
   }
 });
 
