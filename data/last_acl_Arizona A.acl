@@ -1,0 +1,2 @@
+documentid;jobid;jobtype;jobname;printmode;startdate;starttime;activetime;idletime;readydate;readytime;accountid;noffinishedsets;result;receptiondate;receptiontime;operatornote;copiesrequested;mediatypeid;mediatype;mediawidth;medialengthused;printedarea;inkcolorcyan;inkcolormagenta;inkcoloryellow;inkcolorblack;inkcolorwhite;inkcolorvarnish;inkcolorlightcyan;inkcolorlightmagenta;batchid;batchtype;imagewidth;imageheight;printsrequested;printsdone;rigidwidth;rigidheight;rigidsused
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
